@@ -1,5 +1,79 @@
 use super::*;
 
+#[cfg(target_os = "windows")]
+use crate::process_tree::{
+    preferred_windows_powershell, resume_windows_process, WindowsProcessTree,
+};
+
+#[cfg(target_os = "windows")]
+use windows_sys::Win32::System::Threading::{CREATE_NO_WINDOW, CREATE_SUSPENDED};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ShellInvocation {
+    program: String,
+    args: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ShellExecutionPlatform {
+    UnixLike,
+    Windows,
+}
+
+fn shell_invocation_for_platform(
+    command: &str,
+    platform: ShellExecutionPlatform,
+    windows_shell: Option<&str>,
+) -> ShellInvocation {
+    match platform {
+        ShellExecutionPlatform::UnixLike => ShellInvocation {
+            program: "zsh".to_string(),
+            args: vec!["-lc".to_string(), command.to_string()],
+        },
+        ShellExecutionPlatform::Windows => ShellInvocation {
+            program: windows_shell.unwrap_or("powershell.exe").to_string(),
+            args: vec![
+                "-NoLogo".to_string(),
+                "-NoProfile".to_string(),
+                "-NonInteractive".to_string(),
+                "-Command".to_string(),
+                command.to_string(),
+            ],
+        },
+    }
+}
+
+fn shell_invocation(command: &str) -> ShellInvocation {
+    #[cfg(target_os = "windows")]
+    let windows_shell = Some(preferred_windows_powershell());
+
+    #[cfg(not(target_os = "windows"))]
+    let windows_shell: Option<String> = None;
+
+    let platform = if cfg!(windows) {
+        ShellExecutionPlatform::Windows
+    } else {
+        ShellExecutionPlatform::UnixLike
+    };
+    shell_invocation_for_platform(command, platform, windows_shell.as_deref())
+}
+
+pub(super) fn shell_tool_description() -> &'static str {
+    if cfg!(windows) {
+        "Run a command in a background non-interactive PowerShell process. PowerShell 7 is preferred, with Windows PowerShell as the fallback. Use it for flexible local exploration such as rg, Get-ChildItem, ConvertFrom-Json, and sqlite3. Output is truncated by timeout, byte, and line limits. Dangerous commands may require explicit user approval before execution."
+    } else {
+        "Run a shell command in a background non-interactive zsh process. Use it for flexible local exploration such as rg, find, jq, and sqlite3. Output is truncated by timeout, byte, and line limits. Dangerous commands may require explicit user approval before execution."
+    }
+}
+
+pub(super) fn shell_command_description() -> &'static str {
+    if cfg!(windows) {
+        "PowerShell command to run with -NoLogo -NoProfile -NonInteractive -Command."
+    } else {
+        "Shell command to run with zsh -lc."
+    }
+}
+
 pub(super) fn clamp_shell_timeout_ms(value: Option<u64>) -> u64 {
     value
         .unwrap_or(SHELL_DEFAULT_TIMEOUT_MS)
@@ -66,7 +140,7 @@ fn shell_segment_is_risky(words: &[String], platform: ShellRiskPlatform) -> bool
     };
     let command = shell_command_name(&words[command_index]);
 
-    if is_delete_command_name(&command, platform) {
+    if is_destructive_command(&command, &words[command_index + 1..], platform) {
         return true;
     }
 
@@ -192,13 +266,44 @@ fn shell_command_name(command: &str) -> String {
         .to_ascii_lowercase()
 }
 
-fn is_delete_command_name(command: &str, platform: ShellRiskPlatform) -> bool {
+fn is_destructive_command(command: &str, args: &[String], platform: ShellRiskPlatform) -> bool {
     match platform {
         ShellRiskPlatform::UnixLike => command == "rm",
-        ShellRiskPlatform::Windows => matches!(
-            command,
-            "del" | "erase" | "rd" | "rmdir" | "remove-item" | "rm" | "ri"
-        ),
+        ShellRiskPlatform::Windows => {
+            matches!(
+                command,
+                "del"
+                    | "erase"
+                    | "rd"
+                    | "rmdir"
+                    | "remove-item"
+                    | "rm"
+                    | "ri"
+                    | "clear-content"
+                    | "format"
+                    | "format.com"
+                    | "format-volume"
+                    | "clear-disk"
+                    | "initialize-disk"
+                    | "remove-partition"
+                    | "diskpart"
+                    | "stop-process"
+                    | "spps"
+                    | "taskkill"
+                    | "taskkill.exe"
+                    | "stop-service"
+                    | "spsv"
+                    | "remove-service"
+                    | "shutdown"
+                    | "shutdown.exe"
+            ) || (matches!(command, "sc" | "sc.exe")
+                && args.first().is_some_and(|arg| {
+                    matches!(
+                        arg.to_ascii_lowercase().as_str(),
+                        "stop" | "delete" | "failure"
+                    )
+                }))
+        }
     }
 }
 
@@ -262,17 +367,23 @@ pub(super) fn shell_approval_payload(args: &RunShellCommandArgs) -> Value {
     })
 }
 
+pub(super) fn shell_command_requires_approval(
+    args: &RunShellCommandArgs,
+    shell_auto_approve: bool,
+) -> bool {
+    !shell_auto_approve && !args.approved && is_risky_shell_command(&args.command)
+}
+
 fn ai_cancel_requested() -> bool {
     AI_CANCEL_REQUESTED.load(Ordering::SeqCst)
 }
 
 fn truncate_shell_output(value: &str, max_bytes: usize, max_lines: usize) -> (String, bool) {
     let mut used_bytes = 0usize;
-    let mut used_lines = 0usize;
     let mut output = String::new();
     let mut truncated = false;
 
-    for line in value.lines() {
+    for (used_lines, line) in value.lines().enumerate() {
         if used_lines >= max_lines {
             truncated = true;
             break;
@@ -291,7 +402,6 @@ fn truncate_shell_output(value: &str, max_bytes: usize, max_lines: usize) -> (St
 
         output.push_str(&line_with_break);
         used_bytes += line_bytes;
-        used_lines += 1;
     }
 
     if !value.is_empty() && output.is_empty() && max_bytes > 0 {
@@ -328,21 +438,27 @@ pub(super) async fn execute_shell_command(args: RunShellCommandArgs) -> Value {
         });
     }
 
-    let spawn_result = Command::new("zsh")
-        .arg("-lc")
-        .arg(&command)
+    let invocation = shell_invocation(&command);
+    let mut shell_process = Command::new(&invocation.program);
+    shell_process
+        .args(&invocation.args)
         .current_dir(&cwd)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn();
+        .stderr(Stdio::piped());
+    #[cfg(target_os = "windows")]
+    shell_process.creation_flags(CREATE_NO_WINDOW | CREATE_SUSPENDED);
+    let spawn_result = shell_process.spawn();
 
     let mut child = match spawn_result {
         Ok(child) => child,
         Err(error) => {
             return json!({
                 "ok": false,
-                "error": format!("spawn shell command: {}", error),
+                "error": format!(
+                    "spawn AI shell with '{}': {}. Install PowerShell 7 or enable Windows PowerShell on this system",
+                    invocation.program, error
+                ),
                 "command": command,
                 "cwd": cwd,
                 "stdout": "",
@@ -353,6 +469,41 @@ pub(super) async fn execute_shell_command(args: RunShellCommandArgs) -> Value {
             });
         }
     };
+
+    #[cfg(target_os = "windows")]
+    let mut process_tree = match WindowsProcessTree::attach(child.id().unwrap_or(0)) {
+        Ok(tree) => Some(tree),
+        Err(error) => {
+            let _ = child.kill().await;
+            return json!({
+                "ok": false,
+                "error": format!("establish AI shell Windows process-tree ownership: {error}"),
+                "command": command,
+                "cwd": cwd,
+                "stdout": "",
+                "stderr": "",
+                "exitCode": null,
+                "durationMs": started.elapsed().as_millis(),
+                "truncated": false,
+            });
+        }
+    };
+    #[cfg(target_os = "windows")]
+    if let Err(error) = resume_windows_process(child.id().unwrap_or(0)) {
+        drop(process_tree.take());
+        let _ = child.kill().await;
+        return json!({
+            "ok": false,
+            "error": format!("resume owned AI shell process: {error}"),
+            "command": command,
+            "cwd": cwd,
+            "stdout": "",
+            "stderr": "",
+            "exitCode": null,
+            "durationMs": started.elapsed().as_millis(),
+            "truncated": false,
+        });
+    }
 
     let mut stdout = child.stdout.take().expect("stdout piped");
     let mut stderr = child.stderr.take().expect("stderr piped");
@@ -371,6 +522,10 @@ pub(super) async fn execute_shell_command(args: RunShellCommandArgs) -> Value {
     let (timed_out, cancelled) = loop {
         match child.try_wait() {
             Ok(Some(status)) => {
+                #[cfg(target_os = "windows")]
+                if let Some(tree) = process_tree.take() {
+                    let _ = tree.terminate();
+                }
                 let stdout_bytes = stdout_task.await.unwrap_or_default();
                 let stderr_bytes = stderr_task.await.unwrap_or_default();
                 let stdout_raw = String::from_utf8_lossy(&stdout_bytes).to_string();
@@ -406,6 +561,13 @@ pub(super) async fn execute_shell_command(args: RunShellCommandArgs) -> Value {
                 sleep(Duration::from_millis(100)).await;
             }
             Err(error) => {
+                #[cfg(target_os = "windows")]
+                if let Some(tree) = process_tree.take() {
+                    let _ = tree.terminate();
+                }
+                let _ = child.kill().await;
+                let _ = stdout_task.await;
+                let _ = stderr_task.await;
                 return json!({
                     "ok": false,
                     "error": format!("wait shell command: {}", error),
@@ -424,6 +586,10 @@ pub(super) async fn execute_shell_command(args: RunShellCommandArgs) -> Value {
     };
 
     if timed_out || cancelled {
+        #[cfg(target_os = "windows")]
+        if let Some(tree) = process_tree.take() {
+            let _ = tree.terminate();
+        }
         let _ = child.kill().await;
         let stdout_bytes = stdout_task.await.unwrap_or_default();
         let stderr_bytes = stderr_task.await.unwrap_or_default();
@@ -459,6 +625,39 @@ mod tests {
     use super::*;
 
     #[test]
+    fn shell_invocation_is_platform_specific_and_argument_bounded() {
+        // feat-003/AC-1
+        let command = "Write-Output 'hello world'; Get-Location";
+        let pwsh = shell_invocation_for_platform(
+            command,
+            ShellExecutionPlatform::Windows,
+            Some("pwsh.exe"),
+        );
+        assert_eq!(pwsh.program, "pwsh.exe");
+        assert_eq!(
+            pwsh.args,
+            [
+                "-NoLogo",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                command,
+            ]
+        );
+
+        let fallback = shell_invocation_for_platform(
+            command,
+            ShellExecutionPlatform::Windows,
+            Some("powershell.exe"),
+        );
+        assert_eq!(fallback.program, "powershell.exe");
+
+        let zsh = shell_invocation_for_platform(command, ShellExecutionPlatform::UnixLike, None);
+        assert_eq!(zsh.program, "zsh");
+        assert_eq!(zsh.args, ["-lc", command]);
+    }
+
+    #[test]
     fn unix_shell_risk_only_flags_rm_commands() {
         let platform = ShellRiskPlatform::UnixLike;
 
@@ -492,6 +691,7 @@ mod tests {
 
     #[test]
     fn windows_shell_risk_flags_cmd_and_powershell_delete_commands() {
+        // feat-003/AC-3
         let platform = ShellRiskPlatform::Windows;
 
         assert!(is_risky_shell_command_for_platform(
@@ -514,6 +714,26 @@ mod tests {
             "pwsh -c 'rm -Recurse -Force dist'",
             platform
         ));
+        assert!(is_risky_shell_command_for_platform(
+            "Clear-Disk -Number 1 -RemoveData",
+            platform
+        ));
+        assert!(is_risky_shell_command_for_platform(
+            "Remove-Partition -DiskNumber 1 -PartitionNumber 2",
+            platform
+        ));
+        assert!(is_risky_shell_command_for_platform(
+            "Stop-Service Spooler",
+            platform
+        ));
+        assert!(is_risky_shell_command_for_platform(
+            "Stop-Process -Id 42",
+            platform
+        ));
+        assert!(is_risky_shell_command_for_platform(
+            "sc.exe stop Spooler",
+            platform
+        ));
 
         assert!(!is_risky_shell_command_for_platform(
             "git reset --hard",
@@ -528,6 +748,18 @@ mod tests {
             platform
         ));
         assert!(!is_risky_shell_command_for_platform("echo del", platform));
+        assert!(!is_risky_shell_command_for_platform(
+            "Get-Disk | Select-Object Number",
+            platform
+        ));
+        assert!(!is_risky_shell_command_for_platform(
+            "Get-Service Spooler",
+            platform
+        ));
+        assert!(!is_risky_shell_command_for_platform(
+            "sc.exe query Spooler",
+            platform
+        ));
     }
 
     #[test]
@@ -542,5 +774,99 @@ mod tests {
             "powershell -Command \"Remove-Item -Recurse -Force dist\"",
             platform
         ));
+    }
+
+    #[test]
+    fn dangerous_commands_require_explicit_approval() {
+        // feat-003/AC-4
+        let dangerous = RunShellCommandArgs {
+            command: "Remove-Item -Recurse -Force dist".to_string(),
+            ..RunShellCommandArgs::default()
+        };
+        assert!(shell_command_requires_approval(&dangerous, false));
+
+        let approved = RunShellCommandArgs {
+            approved: true,
+            ..dangerous.clone()
+        };
+        assert!(!shell_command_requires_approval(&approved, false));
+        assert!(!shell_command_requires_approval(&dangerous, true));
+
+        let normal = RunShellCommandArgs {
+            command: "Get-ChildItem".to_string(),
+            ..RunShellCommandArgs::default()
+        };
+        assert!(!shell_command_requires_approval(&normal, false));
+    }
+
+    #[test]
+    fn tool_wording_matches_the_active_platform() {
+        // feat-003/AC-7
+        if cfg!(windows) {
+            assert!(shell_tool_description().contains("PowerShell"));
+            assert!(shell_command_description().contains("-NonInteractive"));
+            assert!(!shell_tool_description().contains("zsh process"));
+        } else {
+            assert!(shell_tool_description().contains("zsh"));
+            assert!(shell_command_description().contains("zsh -lc"));
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    #[tokio::test]
+    async fn windows_shell_execution_returns_the_existing_result_contract() {
+        // feat-003/AC-2
+        AI_CANCEL_REQUESTED.store(false, Ordering::SeqCst);
+        let cwd = std::env::temp_dir().to_string_lossy().to_string();
+        let result = execute_shell_command(RunShellCommandArgs {
+            command: "Write-Output 'SHELF_AI_WINDOWS_OK'; [Console]::Error.WriteLine('SHELF_AI_STDERR_OK')".to_string(),
+            cwd: Some(cwd.clone()),
+            timeout_ms: Some(5_000),
+            max_bytes: Some(10_000),
+            max_lines: Some(100),
+            approved: false,
+        })
+        .await;
+
+        assert_eq!(result["ok"], true);
+        assert_eq!(result["cwd"], cwd);
+        assert_eq!(result["exitCode"], 0);
+        assert!(result["stdout"]
+            .as_str()
+            .is_some_and(|value| value.contains("SHELF_AI_WINDOWS_OK")));
+        assert!(result["stderr"]
+            .as_str()
+            .is_some_and(|value| value.contains("SHELF_AI_STDERR_OK")));
+        assert_eq!(result["timeoutMs"], 5_000);
+        assert_eq!(result["maxBytes"], 10_000);
+        assert_eq!(result["maxLines"], 100);
+        assert!(result["durationMs"].is_number());
+        assert!(result["stdoutBytes"].is_number());
+        assert!(result["stderrBytes"].is_number());
+        assert_eq!(result["timedOut"], false);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[tokio::test]
+    async fn windows_shell_timeout_closes_descendant_output_handles() {
+        // feat-003/AC-5
+        AI_CANCEL_REQUESTED.store(false, Ordering::SeqCst);
+        let started = Instant::now();
+        let result = execute_shell_command(RunShellCommandArgs {
+            command: "$info = [Diagnostics.ProcessStartInfo]::new(); $info.FileName = 'powershell.exe'; $info.Arguments = '-NoProfile -Command \"Start-Sleep -Seconds 30\"'; $info.UseShellExecute = $false; [Diagnostics.Process]::Start($info) | Out-Null; Start-Sleep -Seconds 30".to_string(),
+            cwd: None,
+            timeout_ms: Some(1_000),
+            max_bytes: Some(10_000),
+            max_lines: Some(100),
+            approved: false,
+        })
+        .await;
+
+        assert_eq!(result["ok"], false);
+        assert_eq!(result["timedOut"], true);
+        assert!(
+            started.elapsed() < Duration::from_secs(8),
+            "descendant inherited output handles after timeout"
+        );
     }
 }

@@ -10,15 +10,7 @@ pub(super) fn path_matches_mounted_workspace(
 }
 
 pub(super) fn paths_equal(left: &str, right: &str) -> bool {
-    let left_path = Path::new(left);
-    let right_path = Path::new(right);
-    if left_path == right_path {
-        return true;
-    }
-    match (fs::canonicalize(left_path), fs::canonicalize(right_path)) {
-        (Ok(left), Ok(right)) => left == right,
-        _ => false,
-    }
+    crate::platform_paths::paths_equal(left, right)
 }
 
 pub(super) fn mounted_workspace_for_path(
@@ -52,7 +44,8 @@ pub(super) fn scan_claude_sessions(path: &str) -> Result<Vec<Session>, AiToolErr
 
 pub(super) fn scan_codex_sessions(path: &str) -> Result<Vec<Session>, AiToolError> {
     let workspace = mounted_workspace_for_path(path, SessionProvider::Codex)?;
-    crate::commands::sessions::scan_codex_sessions_sync(&workspace.path).map_err(AiToolError::Failed)
+    crate::commands::sessions::scan_codex_sessions_sync(&workspace.path)
+        .map_err(AiToolError::Failed)
 }
 
 pub(super) fn scan_pi_sessions(path: &str) -> Result<Vec<Session>, AiToolError> {
@@ -107,9 +100,7 @@ pub(super) fn absolute_path_from_path(path: &Path) -> String {
 }
 
 pub(super) fn path_is_under(path: &Path, parent: &Path) -> bool {
-    let path = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-    let parent = fs::canonicalize(parent).unwrap_or_else(|_| parent.to_path_buf());
-    path.starts_with(parent)
+    crate::platform_paths::path_is_under(path, parent)
 }
 
 pub(super) fn is_ai_session_record_path(path: &Path) -> bool {
@@ -332,7 +323,8 @@ pub(super) fn configured_session_record_files(
                 }
             }
             SessionProvider::Codex => {
-                let Ok(sessions) = crate::commands::sessions::scan_codex_sessions_sync(&workspace.path)
+                let Ok(sessions) =
+                    crate::commands::sessions::scan_codex_sessions_sync(&workspace.path)
                 else {
                     continue;
                 };
@@ -354,7 +346,8 @@ pub(super) fn configured_session_record_files(
                 if workspace.ssh.is_some() {
                     continue;
                 }
-                let Ok(sessions) = crate::commands::sessions::scan_pi_sessions_sync(&workspace.path)
+                let Ok(sessions) =
+                    crate::commands::sessions::scan_pi_sessions_sync(&workspace.path)
                 else {
                     continue;
                 };
@@ -578,7 +571,8 @@ mod tests {
 
     #[test]
     fn detects_pi_session_header_outside_known_record_dirs() {
-        let path = std::env::temp_dir().join(format!("shelf-pi-session-{}.jsonl", uuid::Uuid::new_v4()));
+        let path =
+            std::env::temp_dir().join(format!("shelf-pi-session-{}.jsonl", uuid::Uuid::new_v4()));
         fs::write(
             &path,
             r#"{"type":"session","version":3,"id":"test","timestamp":"2026-01-01T00:00:00Z","cwd":"/tmp/project"}
@@ -592,6 +586,7 @@ mod tests {
 
     #[test]
     fn ai_session_record_path_detects_known_record_dirs() {
+        // feat-003/AC-6
         let Some(home_dir) = dirs::home_dir() else {
             return;
         };
@@ -607,5 +602,18 @@ mod tests {
         assert!(!is_ai_session_record_path(
             &home_dir.join("Desktop/project/demo.jsonl")
         ));
+
+        #[cfg(target_os = "windows")]
+        {
+            assert!(paths_equal(r"C:\Work\Shelf\", r"\\?\c:/work/shelf"));
+            assert!(path_is_under(
+                Path::new(r"C:\Work\Shelf\.claude\projects\session.jsonl"),
+                Path::new(r"c:/work/shelf")
+            ));
+            assert!(!path_is_under(
+                Path::new(r"C:\Work\Shelf-Other\session.jsonl"),
+                Path::new(r"c:/work/shelf")
+            ));
+        }
     }
 }

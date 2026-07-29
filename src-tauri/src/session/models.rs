@@ -1,18 +1,13 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum SessionProvider {
+    #[default]
     Claude,
     Codex,
     Pi,
-}
-
-impl Default for SessionProvider {
-    fn default() -> Self {
-        SessionProvider::Claude
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
@@ -142,20 +137,23 @@ mod tests {
 
     #[test]
     fn cli_args_round_trip_as_argv() {
-        let mut config = ShelfConfig::default();
-        config.claude_args = vec![
-            "--dangerously-skip-permissions".to_string(),
-            "--settings".to_string(),
-            "/Users/username/My Settings/claude.json".to_string(),
-        ];
-        config.codex_args = vec!["--profile".to_string(), "work".to_string()];
-        config.pi_args = vec![
-            "--model".to_string(),
-            "anthropic/claude-sonnet-4".to_string(),
-        ];
+        let config = ShelfConfig {
+            claude_args: vec![
+                "--dangerously-skip-permissions".to_string(),
+                "--settings".to_string(),
+                "/Users/username/My Settings/claude.json".to_string(),
+            ],
+            codex_args: vec!["--profile".to_string(), "work".to_string()],
+            pi_args: vec![
+                "--model".to_string(),
+                "anthropic/claude-sonnet-4".to_string(),
+            ],
+            ..Default::default()
+        };
 
         let encoded = serde_json::to_string(&config).expect("config should serialize");
-        let decoded: ShelfConfig = serde_json::from_str(&encoded).expect("config should deserialize");
+        let decoded: ShelfConfig =
+            serde_json::from_str(&encoded).expect("config should deserialize");
 
         assert_eq!(decoded.claude_args, config.claude_args);
         assert_eq!(decoded.codex_args, config.codex_args);

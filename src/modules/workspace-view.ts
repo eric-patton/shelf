@@ -5,6 +5,7 @@ import { showContextMenu } from "./context-menu";
 import { openDialog, confirmDialog } from "./dialog";
 import { SESSION_PAGE_SIZE } from "./app-constants";
 import type { AiGroup, AiSessionMeta, Session, SessionProvider, SshTarget, WorkspaceItem } from "../types";
+import { pathsEqual } from "./platform-paths";
 
 export function _renderWorkspaces(app: any) {
   app.workspaceList.innerHTML = "";
@@ -250,7 +251,9 @@ export function _renderWorkspaceItem(app: any, ws: WorkspaceItem): HTMLElement {
   const wsDiv = document.createElement("div");
   wsDiv.className = "workspace-item provider-workspace-item";
   const key = app.ws.workspaceKey(ws.path, ws.provider);
-  const isSelected = app.selectedWorkspace === ws.path && app.ws.selectedProvider === ws.provider;
+  const isSelected = !!app.selectedWorkspace
+    && pathsEqual(app.selectedWorkspace, ws.path, !!ws.ssh)
+    && app.ws.selectedProvider === ws.provider;
   const isExpanded = app.ws.expandedWorkspaces.has(key);
   const sessions = app.ws.getSessions(ws.path, ws.provider);
   const page = app.ws.sessionPages.get(key) || 1;
@@ -289,7 +292,14 @@ export function _renderWorkspaceItem(app: any, ws: WorkspaceItem): HTMLElement {
     if (deletePending) {
       const toClose: string[] = [];
       for (const [, tab] of app.tabs.tabsMap) {
-        if (tab.workspacePath === ws.path && tab.sessionProvider === ws.provider && tab.closable) toClose.push(tab.id);
+        if (
+          tab.workspacePath
+          && pathsEqual(tab.workspacePath, ws.path, !!ws.ssh)
+          && tab.sessionProvider === ws.provider
+          && tab.closable
+        ) {
+          toClose.push(tab.id);
+        }
       }
       for (const id of toClose) {
         if (app.tabs.tabsMap.get(id)?.sessionId) {

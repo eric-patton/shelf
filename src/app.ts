@@ -26,6 +26,8 @@ import * as workspaceView from "./modules/workspace-view";
 import * as appState from "./modules/app-state";
 import type { AiToolMessage } from "./modules/ai-window";
 import type { SavedAppState, SavedTabState, SavedWindowState } from "./modules/app-state";
+import { selectShell, type TerminalDetection } from "./modules/shell-selection";
+import { pathsEqual } from "./modules/platform-paths";
 
 type PendingSessionTab = {
   workspacePath: string;
@@ -44,7 +46,7 @@ class App {
   ws!: WorkspaceManager;
   activeSessionIds = new Set<string>();
   focusedSessionId: string | null = null;
-  shellSetting = "zsh";
+  shellSetting = navigator.platform.toLowerCase().includes("win") ? "powershell" : "zsh";
   theme: AppTheme = "dark";
   claudePath = "claude";
   codexPath = "codex";
@@ -303,8 +305,11 @@ class App {
 
   private async _loadSettings() {
     try {
-      const s = await tauriInvoke<any>("get_settings");
-      if (s?.shell) this.shellSetting = s.shell;
+      const [s, detection] = await Promise.all([
+        tauriInvoke<any>("get_settings"),
+        tauriInvoke<TerminalDetection>("detect_terminals"),
+      ]);
+      this.shellSetting = selectShell(s?.shell, detection);
       if (s?.language) { setLang(s.language); }
       if (s?.pinned) { this.pinnedIds = new Set(s.pinned); }
       const claudeArgs = s?.claudeArgs || s?.claude_args;
@@ -546,7 +551,14 @@ class App {
     const byId = new Map(sessions.map((session) => [session.id, session]));
 
     for (const tab of this.tabs.tabsMap.values()) {
-      if (!tab.sessionId || tab.workspacePath !== workspacePath || tab.sessionProvider !== provider) continue;
+      if (
+        !tab.sessionId
+        || !tab.workspacePath
+        || !pathsEqual(tab.workspacePath, workspacePath, !!tab.ssh)
+        || tab.sessionProvider !== provider
+      ) {
+        continue;
+      }
       const session = byId.get(tab.sessionId);
       if (!session) continue;
       const title = this._displayTitleForSession(session);
@@ -579,7 +591,7 @@ class App {
 
     for (const [tabId, pending] of this.pendingSessionTabs) {
       if (pending.linkedSessionId) continue;
-      if (pending.workspacePath !== workspacePath) continue;
+      if (!pathsEqual(pending.workspacePath, workspacePath)) continue;
       if (pending.provider !== provider) continue;
       const match = this._findSessionForPendingSession(pending, sessions);
       if (match) this._linkPendingSessionTab(tabId, pending, match);

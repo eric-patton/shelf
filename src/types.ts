@@ -45,6 +45,7 @@ export interface TabInfo {
   workspacePath?: string;
   cwd?: string;
   shell?: string;
+  ssh?: SshTarget;
   restoreKind?: "terminal" | "session" | "new-session";
   title: string;
   closable: boolean;

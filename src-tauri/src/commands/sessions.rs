@@ -9,7 +9,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 #[tauri::command]
-pub async fn scan_sessions(workspace_path: String, ssh: Option<SshTarget>) -> Result<Vec<Session>, String> {
+pub async fn scan_sessions(
+    workspace_path: String,
+    ssh: Option<SshTarget>,
+) -> Result<Vec<Session>, String> {
     if let Some(ssh_target) = ssh {
         return tauri::async_runtime::spawn_blocking(move || {
             let mut sessions = scan_sessions_remote(&workspace_path, &ssh_target)?;
@@ -36,7 +39,10 @@ pub fn scan_sessions_sync(workspace_path: &str) -> Result<Vec<Session>, String> 
 }
 
 #[tauri::command]
-pub async fn scan_codex_sessions(workspace_path: String, ssh: Option<SshTarget>) -> Result<Vec<Session>, String> {
+pub async fn scan_codex_sessions(
+    workspace_path: String,
+    ssh: Option<SshTarget>,
+) -> Result<Vec<Session>, String> {
     if let Some(ssh_target) = ssh {
         return tauri::async_runtime::spawn_blocking(move || {
             let mut sessions = scan_codex_sessions_remote(&workspace_path, &ssh_target)?;
@@ -82,10 +88,8 @@ pub async fn scan_pi_sessions(
         .map_err(|e| format!("SSH pi scan failed: {}", e))?;
     }
     tauri::async_runtime::spawn_blocking(move || {
-        let mut sessions = crate::session::scan_pi_sessions(
-            &workspace_path,
-            session_dir_override.as_deref(),
-        )?;
+        let mut sessions =
+            crate::session::scan_pi_sessions(&workspace_path, session_dir_override.as_deref())?;
         apply_session_title_overrides(&mut sessions);
         Ok(sessions)
     })
@@ -96,10 +100,8 @@ pub async fn scan_pi_sessions(
 /// Synchronous pi scan for internal use (AI tools, etc.) that doesn't use SSH.
 pub fn scan_pi_sessions_sync(workspace_path: &str) -> Result<Vec<Session>, String> {
     let session_dir_override = pi_session_dir_override();
-    let mut sessions = crate::session::scan_pi_sessions(
-        workspace_path,
-        session_dir_override.as_deref(),
-    )?;
+    let mut sessions =
+        crate::session::scan_pi_sessions(workspace_path, session_dir_override.as_deref())?;
     apply_session_title_overrides(&mut sessions);
     Ok(sessions)
 }
@@ -162,7 +164,10 @@ fn remove_session_title_override(session_id: &str) {
     }
 }
 
-fn scan_sessions_remote(workspace_path: &str, ssh_target: &SshTarget) -> Result<Vec<Session>, String> {
+fn scan_sessions_remote(
+    workspace_path: &str,
+    ssh_target: &SshTarget,
+) -> Result<Vec<Session>, String> {
     let sanitized = sanitize_path(workspace_path);
     // List JSONL files in remote ~/.claude/projects/<sanitized>/
     let ls_cmd = format!("ls ~/.claude/projects/{}/ 2>/dev/null", sanitized);
@@ -197,12 +202,16 @@ fn scan_sessions_remote(workspace_path: &str, ssh_target: &SshTarget) -> Result<
     Ok(sessions)
 }
 
-fn parse_remote_session_file(content: &str, filename: &str, _ssh_target: &SshTarget) -> Result<Option<Session>, String> {
+fn parse_remote_session_file(
+    content: &str,
+    filename: &str,
+    _ssh_target: &SshTarget,
+) -> Result<Option<Session>, String> {
     // Use the filename (`<uuid>.jsonl`) as the authoritative session id so we
     // can surface sessions that exist on disk but haven't had a `type:"user"`
     // line written yet (claude writes permission-mode / file-history-snapshot
     // first; without this, the "+ new claude" pending tab never linked).
-    let mut session_id = filename.trim_end_matches(".jsonl").to_string();
+    let session_id = filename.trim_end_matches(".jsonl").to_string();
     let mut cwd = String::new();
     let mut custom_title: Option<String> = None;
     let mut ai_title: Option<String> = None;
@@ -306,11 +315,8 @@ fn scan_pi_sessions_remote(
         ssh_target,
         &format!("{} && pwd -P", remote_cd_command(workspace_path)),
     )?;
-    let session_dir = resolve_remote_pi_session_dir(
-        &resolved_workspace,
-        ssh_target,
-        session_dir_override,
-    )?;
+    let session_dir =
+        resolve_remote_pi_session_dir(&resolved_workspace, ssh_target, session_dir_override)?;
     let find_cmd = format!(
         "find {} -maxdepth 1 -type f -name '*.jsonl' -print 2>/dev/null",
         shell_quote(&session_dir)
@@ -321,7 +327,11 @@ fn scan_pi_sessions_remote(
     }
 
     let mut sessions = Vec::new();
-    for path in output.lines().map(str::trim).filter(|path| !path.is_empty()) {
+    for path in output
+        .lines()
+        .map(str::trim)
+        .filter(|path| !path.is_empty())
+    {
         let content = match ssh_exec(ssh_target, &format!("cat -- {}", shell_quote(path))) {
             Ok(content) => content,
             Err(_) => continue,
@@ -392,10 +402,7 @@ struct RemotePiEnvironment {
 
 fn remote_pi_environment(ssh_target: &SshTarget) -> Result<RemotePiEnvironment, String> {
     let script = r#"printf 'SESSION=%s\nAGENT=%s\nHOME=%s\n' "${PI_CODING_AGENT_SESSION_DIR:-}" "${PI_CODING_AGENT_DIR:-}" "$HOME""#;
-    let output = ssh_exec(
-        ssh_target,
-        &format!("bash -lc {}", shell_quote(script)),
-    )?;
+    let output = ssh_exec(ssh_target, &format!("bash -lc {}", shell_quote(script)))?;
     let mut session_dir = None;
     let mut agent_dir = None;
     let mut home = None;
@@ -466,8 +473,8 @@ fn shell_quote(value: &str) -> String {
 /// Column names present in the Codex `threads` table. Older Codex builds predate
 /// the millisecond columns (`created_at_ms`/`updated_at_ms`) and even
 /// `first_user_message`/`cli_version`. SQLite resolves every column name at
-/// prepare time — so referencing a missing column is a hard "no such column"
-/// error even inside `coalesce()` — hence we introspect and only emit columns
+/// prepare time - so referencing a missing column is a hard "no such column"
+/// error even inside `coalesce()` - hence we introspect and only emit columns
 /// that actually exist.
 fn codex_thread_columns(conn: &Connection) -> std::collections::HashSet<String> {
     let mut cols = std::collections::HashSet::new();
@@ -490,7 +497,10 @@ fn codex_ms_expr(cols: &std::collections::HashSet<String>, base: &str) -> String
     }
 }
 
-fn scan_codex_sessions_remote(workspace_path: &str, ssh_target: &SshTarget) -> Result<Vec<Session>, String> {
+fn scan_codex_sessions_remote(
+    workspace_path: &str,
+    ssh_target: &SshTarget,
+) -> Result<Vec<Session>, String> {
     // Find the newest codex state db on the remote host
     let find_cmd = "ls -t ~/.codex/state_*.sqlite 2>/dev/null | head -1";
     let db_path_remote = ssh_exec(ssh_target, find_cmd)?;
@@ -527,14 +537,18 @@ fn scan_codex_sessions_remote(workspace_path: &str, ssh_target: &SshTarget) -> R
         "''"
     };
 
-    // Build SELECT clause — always 8 fields in the same order for the parser below
+    // Build SELECT clause - always 8 fields in the same order for the parser below
     let sql = format!(
         "select id, coalesce(title,''), coalesce(cwd,''), {}, {}, {}, coalesce(rollout_path,''), {} \
          from threads where archived=0 \
          order by {} desc, id desc",
         first_user_msg_sel, created_expr, updated_expr, cli_version_sel, updated_expr
     );
-    let query_cmd = format!("sqlite3 '{}' -separator '|' \"{}\"", db_path_remote, sql.replace('"', "\\\""));
+    let query_cmd = format!(
+        "sqlite3 '{}' -separator '|' \"{}\"",
+        db_path_remote,
+        sql.replace('"', "\\\"")
+    );
     let output = ssh_exec(ssh_target, &query_cmd)?;
 
     let ws_normalized = normalize_path(workspace_path);
@@ -565,10 +579,18 @@ fn scan_codex_sessions_remote(workspace_path: &str, ssh_target: &SshTarget) -> R
         sessions.push(Session {
             id,
             cwd,
-            display_title: if title.trim().is_empty() { "(untitled)".to_string() } else { title },
+            display_title: if title.trim().is_empty() {
+                "(untitled)".to_string()
+            } else {
+                title
+            },
             custom_title: None,
             ai_title: None,
-            first_prompt: if first_user_message.trim().is_empty() { None } else { Some(first_user_message) },
+            first_prompt: if first_user_message.trim().is_empty() {
+                None
+            } else {
+                Some(first_user_message)
+            },
             message_count: 0,
             started_at,
             updated_at: updated_at_val,
@@ -611,7 +633,7 @@ fn scan_codex_sessions_local(workspace_path: &str) -> Result<Vec<Session>, Strin
         first_user_msg_sel, created_expr, updated_expr, cli_version_sel, updated_expr
     );
 
-    let workspace_candidates: Vec<String> = path_candidates(&workspace_path);
+    let workspace_candidates: Vec<String> = path_candidates(workspace_path);
     let mut stmt = conn
         .prepare(&sql)
         .map_err(|e| format!("Prepare Codex query: {}", e))?;
@@ -677,12 +699,7 @@ fn path_candidates(path: &str) -> Vec<String> {
 }
 
 fn normalize_path(path: &str) -> String {
-    let trimmed = path.trim_end_matches('/');
-    if trimmed.is_empty() {
-        "/".to_string()
-    } else {
-        trimmed.to_string()
-    }
+    crate::platform_paths::normalize_path_for_compare(path)
 }
 
 fn path_is_in_workspace(path: &str, workspace_candidates: &[String]) -> bool {
@@ -695,7 +712,7 @@ fn path_is_in_workspace(path: &str, workspace_candidates: &[String]) -> bool {
 }
 
 fn path_equal_or_nested(path: &str, workspace: &str) -> bool {
-    path == workspace || (workspace != "/" && path.starts_with(&format!("{}/", workspace)))
+    crate::platform_paths::path_equal_or_nested(path, workspace)
 }
 
 fn codex_state_db_path() -> Result<PathBuf, String> {
@@ -719,7 +736,7 @@ fn codex_state_db_path() -> Result<PathBuf, String> {
             };
             if newest
                 .as_ref()
-                .map_or(true, |(current, _)| version > *current)
+                .is_none_or(|(current, _)| version > *current)
             {
                 newest = Some((version, path));
             }
@@ -846,7 +863,8 @@ pub fn delete_session(
 }
 
 fn delete_pi_session(session_id: &str, workspace_path: Option<&str>) -> Result<(), String> {
-    let workspace_path = workspace_path.ok_or("Workspace path is required to delete a pi session")?;
+    let workspace_path =
+        workspace_path.ok_or("Workspace path is required to delete a pi session")?;
     let mounted = load_config().workspaces.into_iter().any(|workspace| {
         workspace.provider == SessionProvider::Pi
             && workspace.ssh.is_none()
@@ -857,10 +875,8 @@ fn delete_pi_session(session_id: &str, workspace_path: Option<&str>) -> Result<(
     }
 
     let session_dir_override = pi_session_dir_override();
-    let sessions = crate::session::scan_pi_sessions(
-        workspace_path,
-        session_dir_override.as_deref(),
-    )?;
+    let sessions =
+        crate::session::scan_pi_sessions(workspace_path, session_dir_override.as_deref())?;
     let session = sessions
         .into_iter()
         .find(|session| session.id == session_id)
@@ -903,8 +919,8 @@ fn delete_remote_session(
             format!("rollout-*-{}.jsonl", session_id),
         ),
         SessionProvider::Pi => {
-            let workspace_path = workspace_path
-                .ok_or("Workspace path is required to delete a remote pi session")?;
+            let workspace_path =
+                workspace_path.ok_or("Workspace path is required to delete a remote pi session")?;
             let resolved_workspace = ssh_exec(
                 ssh,
                 &format!("{} && pwd -P", remote_cd_command(workspace_path)),
@@ -1084,5 +1100,17 @@ mod tests {
     fn remote_session_id_validation_accepts_pi_dots() {
         assert!(is_safe_session_id("release.1"));
         assert!(!is_safe_session_id("../release.1"));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn codex_workspace_filter_uses_windows_component_boundaries() {
+        // feat-002/AC-8
+        let candidates = path_candidates(r"C:\Work\Shelf");
+        assert!(path_is_in_workspace(r"c:/work/shelf/session", &candidates));
+        assert!(!path_is_in_workspace(
+            r"C:\Work\Shelf-old\session",
+            &candidates
+        ));
     }
 }

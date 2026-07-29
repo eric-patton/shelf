@@ -13,6 +13,12 @@ use std::{
 use portable_pty::{native_pty_system, Child, ChildKiller, CommandBuilder, MasterPty, PtySize};
 use tauri::{async_runtime::RwLock, AppHandle, Runtime};
 
+#[cfg(target_os = "windows")]
+use crate::process_tree::{preferred_windows_powershell, WindowsProcessTree};
+
+#[cfg(all(target_os = "windows", test))]
+use windows_sys::Win32::System::Threading::CREATE_NO_WINDOW;
+
 #[derive(Default)]
 pub struct PtyState {
     session_id: AtomicU32,
@@ -25,9 +31,12 @@ struct PtySession {
     child_killer: Mutex<Box<dyn ChildKiller + Send + Sync>>,
     /// OS process id of the spawned child (NOT the session map key).
     /// On Unix, portable_pty runs `setsid()` in pre_exec, so this PID is
-    /// also the process-group id / session id — killing `-child_pid` reaps
+    /// also the process-group id / session id - killing `-child_pid` reaps
     /// the whole descendant tree (e.g. Claude Code's MCP grandchildren).
+    #[cfg(unix)]
     child_pid: u32,
+    #[cfg(target_os = "windows")]
+    process_tree: Mutex<Option<WindowsProcessTree>>,
     writer: Mutex<Box<dyn std::io::Write + Send>>,
     reader: Mutex<Box<dyn std::io::Read + Send>>,
     reader_closed: AtomicBool,
@@ -37,6 +46,7 @@ struct PtySession {
 /// Keys that should not be inherited from the login shell environment,
 /// either because Shelf sets them explicitly or because they are
 /// session-specific / display-specific.
+#[cfg(not(target_os = "windows"))]
 const ENV_SKIP_KEYS: &[&str] = &[
     "PATH",
     "TERM",
@@ -59,10 +69,11 @@ const ENV_SKIP_KEYS: &[&str] = &[
 /// or custom tool configuration) are available to PTY child processes.
 ///
 /// On macOS, GUI apps launched from Dock/Launchpad do **not** inherit
-/// shell environment variables — only launchd's minimal environment is
+/// shell environment variables - only launchd's minimal environment is
 /// available. This function bridges that gap.
 ///
 /// The result is computed once and cached for the lifetime of the process.
+#[cfg(not(target_os = "windows"))]
 fn login_shell_env() -> &'static BTreeMap<String, String> {
     static CACHE: OnceLock<BTreeMap<String, String>> = OnceLock::new();
     CACHE.get_or_init(|| {
@@ -97,6 +108,12 @@ fn login_shell_env() -> &'static BTreeMap<String, String> {
         }
         env_map
     })
+}
+
+#[cfg(target_os = "windows")]
+fn login_shell_env() -> &'static BTreeMap<String, String> {
+    static EMPTY: OnceLock<BTreeMap<String, String>> = OnceLock::new();
+    EMPTY.get_or_init(BTreeMap::new)
 }
 
 fn is_path_env_key(key: &str) -> bool {
@@ -212,7 +229,7 @@ async fn remove_session_if_done(
         let mut sessions = state.sessions.write().await;
         if sessions
             .get(&pid)
-            .map_or(false, |current| Arc::ptr_eq(current, session))
+            .is_some_and(|current| Arc::ptr_eq(current, session))
         {
             sessions.remove(&pid);
         }
@@ -270,7 +287,80 @@ fn build_pty_command(
     cmd
 }
 
+#[derive(Debug, PartialEq, Eq)]
+struct ResolvedSpawnCommand {
+    file: String,
+    args: Vec<String>,
+}
+
+fn resolve_spawn_command(file: &str, args: &[String]) -> ResolvedSpawnCommand {
+    #[cfg(target_os = "windows")]
+    {
+        resolve_windows_spawn_command(file, args)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        ResolvedSpawnCommand {
+            file: file.to_string(),
+            args: args.to_vec(),
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn resolve_windows_spawn_command(file: &str, args: &[String]) -> ResolvedSpawnCommand {
+    let normalized_file = file.replace('/', "\\");
+    let extension = Path::new(&normalized_file)
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    match extension.as_str() {
+        "cmd" | "bat" => {
+            let mut command_parts = Vec::with_capacity(args.len() + 1);
+            command_parts.push(cmd_quote_argument(&normalized_file));
+            command_parts.extend(args.iter().map(|value| cmd_quote_argument(value)));
+            ResolvedSpawnCommand {
+                file: "cmd.exe".to_string(),
+                args: vec![
+                    "/D".to_string(),
+                    "/V:OFF".to_string(),
+                    "/S".to_string(),
+                    "/C".to_string(),
+                    command_parts.join(" "),
+                ],
+            }
+        }
+        "ps1" => {
+            let mut resolved_args = vec![
+                "-NoLogo".to_string(),
+                "-NoProfile".to_string(),
+                "-NonInteractive".to_string(),
+                "-File".to_string(),
+                normalized_file,
+            ];
+            resolved_args.extend_from_slice(args);
+            ResolvedSpawnCommand {
+                file: preferred_windows_powershell(),
+                args: resolved_args,
+            }
+        }
+        _ => ResolvedSpawnCommand {
+            file: normalized_file,
+            args: args.to_vec(),
+        },
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn cmd_quote_argument(value: &str) -> String {
+    format!("\"{}\"", value.replace('"', "\"\""))
+}
+
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn pty_spawn<R: Runtime>(
     file: String,
     args: Vec<String>,
@@ -315,9 +405,10 @@ pub async fn pty_spawn<R: Runtime>(
     };
 
     let login_env = login_shell_env();
+    let resolved = resolve_spawn_command(&file, &args);
     let cmd = build_pty_command(
-        &file,
-        &args,
+        &resolved.file,
+        &resolved.args,
         cwd.as_deref(),
         &env_remove_keys,
         &term_name,
@@ -337,15 +428,16 @@ pub async fn pty_spawn<R: Runtime>(
             // login-shell fallback still applies. `cfg!` keeps the branch
             // type-checked on all platforms but it only runs on Windows.
             if cfg!(target_os = "windows") {
-                let normalized: String = file.replace('/', "\\");
-                if normalized != file {
+                let normalized: String = resolved.file.replace('/', "\\");
+                if normalized != resolved.file {
                     log::info!(
                         "[pty_spawn] spawn failed ({}); retrying with normalized path `{}`",
-                        first_err, normalized
+                        first_err,
+                        normalized
                     );
                     let cmd2 = build_pty_command(
                         &normalized,
-                        &args,
+                        &resolved.args,
                         cwd.as_deref(),
                         &env_remove_keys,
                         &term_name,
@@ -371,6 +463,15 @@ pub async fn pty_spawn<R: Runtime>(
     };
     let child_killer = child.clone_killer();
     let child_pid = child.process_id().unwrap_or(0);
+    #[cfg(target_os = "windows")]
+    let process_tree = match WindowsProcessTree::attach(child_pid) {
+        Ok(tree) => tree,
+        Err(error) => {
+            let mut killer = child_killer;
+            let _ = killer.kill();
+            return Err(format!("Establish Windows process-tree ownership: {error}"));
+        }
+    };
     let master = pair.master;
     drop(pair.slave);
     let handler = state.session_id.fetch_add(1, Ordering::Relaxed);
@@ -381,8 +482,11 @@ pub async fn pty_spawn<R: Runtime>(
             master: Mutex::new(master),
             child: Mutex::new(child),
             child_killer: Mutex::new(child_killer),
+            #[cfg(target_os = "windows")]
+            process_tree: Mutex::new(Some(process_tree)),
             writer: Mutex::new(writer),
             reader: Mutex::new(reader),
+            #[cfg(unix)]
             child_pid,
             reader_closed: AtomicBool::new(false),
             child_exited: AtomicBool::new(false),
@@ -506,6 +610,10 @@ pub async fn pty_kill(pid: u32, state: tauri::State<'_, PtyState>) -> Result<(),
                 }
             }
         }
+        #[cfg(target_os = "windows")]
+        if let Ok(mut process_tree) = session.process_tree.lock() {
+            process_tree.take();
+        }
         // Final backstop: kill the direct child via portable_pty too. On
         // Unix this sends SIGHUP (harmless if the group kill already reaped
         // it); on Windows there is no process-group concept so this is the
@@ -517,6 +625,105 @@ pub async fn pty_kill(pid: u32, state: tauri::State<'_, PtyState>) -> Result<(),
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(target_os = "windows")]
+    use std::os::windows::process::CommandExt;
+
+    #[test]
+    fn spawn_resolution_keeps_direct_executables_direct() {
+        // feat-001/AC-3
+        let resolved = resolve_spawn_command("agent.exe", &["hello world".to_string()]);
+        #[cfg(target_os = "windows")]
+        assert_eq!(resolved.file, "agent.exe");
+        #[cfg(not(target_os = "windows"))]
+        assert_eq!(resolved.file, "agent.exe");
+        assert_eq!(resolved.args, vec!["hello world"]);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn spawn_resolution_wraps_windows_command_files() {
+        // feat-001/AC-3
+        let resolved = resolve_spawn_command(
+            r"C:/Program Files/Agent/agent.cmd",
+            &["hello world".to_string(), "项目".to_string()],
+        );
+        assert_eq!(resolved.file, "cmd.exe");
+        assert_eq!(&resolved.args[..4], ["/D", "/V:OFF", "/S", "/C"]);
+        assert_eq!(
+            resolved.args[4],
+            r#""C:\Program Files\Agent\agent.cmd" "hello world" "项目""#
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn spawn_resolution_wraps_powershell_scripts() {
+        // feat-001/AC-3
+        let resolved = resolve_spawn_command(
+            r"C:\Tools\agent.ps1",
+            &["hello world".to_string(), "项目".to_string()],
+        );
+        assert!(matches!(
+            resolved.file.as_str(),
+            "pwsh.exe" | "powershell.exe"
+        ));
+        assert_eq!(
+            resolved.args,
+            vec![
+                "-NoLogo",
+                "-NoProfile",
+                "-NonInteractive",
+                "-File",
+                r"C:\Tools\agent.ps1",
+                "hello world",
+                "项目",
+            ]
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_login_environment_capture_is_empty() {
+        // feat-001/AC-4
+        assert!(login_shell_env().is_empty());
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_process_tree_closes_descendants() {
+        // feat-001/AC-6
+        let mut child = std::process::Command::new("cmd.exe")
+            .args([
+                "/D",
+                "/S",
+                "/C",
+                "start \"\" /B powershell.exe -NoProfile -Command \"Start-Sleep -Seconds 60\" & timeout /T 60 /NOBREAK",
+            ])
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .expect("spawn process-tree fixture");
+        let process_id = child.id();
+        let tree = WindowsProcessTree::attach(process_id).expect("attach process tree");
+        drop(tree);
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            if child.try_wait().expect("query child").is_some() {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "job close did not terminate the child"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+    }
 }
 
 #[tauri::command]

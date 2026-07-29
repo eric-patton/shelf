@@ -7,6 +7,7 @@ import { createTerminalTab, scheduleTerminalRefit } from "./terminal";
 import { buildSshArgs } from "./ssh";
 import { buildLocalCliCommand, buildRemoteCliCommand } from "./cli-launch";
 import type { SessionProvider, SshTarget, TabInfo } from "../types";
+import { savedTabsFromRuntime, validSavedTabStates } from "./saved-state";
 
 export type SavedWindowState = {
   x: number;
@@ -65,28 +66,7 @@ export async function _restoreWindowState(app: any) {
 }
 
 export function _buildAppState(app: any, windowState?: SavedWindowState): SavedAppState {
-  const tabs: SavedTabState[] = [];
-  for (const tabId of app.tabs.getTabOrder()) {
-    const tab = app.tabs.tabsMap.get(tabId);
-    if (!tab || !tab.closable || tabId === START_TAB_ID) continue;
-
-    const kind = tab.sessionId ? "session" : tab.restoreKind || "terminal";
-    if (kind === "terminal") continue;
-    if (kind === "session" && (!tab.sessionId || !tab.sessionProvider)) continue;
-    if (kind === "new-session" && (!tab.sessionProvider || !tab.workspacePath)) continue;
-
-    tabs.push({
-      id: tab.id,
-      kind,
-      title: tab.title,
-      cwd: tab.cwd,
-      workspacePath: tab.workspacePath,
-      sessionProvider: tab.sessionProvider,
-      sessionId: tab.sessionId,
-      shell: tab.shell,
-      ssh: (tab as any).ssh,
-    });
-  }
+  const tabs = savedTabsFromRuntime(app.tabs.getTabOrder(), app.tabs.tabsMap, START_TAB_ID);
 
   return {
     version: 1,
@@ -158,7 +138,7 @@ export async function _restoreSavedTabs(app: any) {
 
   app.restoreInProgress = true;
   try {
-    for (const saved of state.tabs) {
+    for (const saved of validSavedTabStates(state.tabs)) {
       if (app.tabs.tabsMap.has(saved.id) || saved.id === START_TAB_ID) continue;
       const tab = app._createRestoredTab(saved);
       if (tab) app.tabs.addTab(tab, false);

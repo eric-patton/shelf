@@ -1,5 +1,5 @@
-use crate::session::{FileEntry, SshTarget};
 use crate::commands::ssh::ssh_exec;
+use crate::session::{FileEntry, SshTarget};
 use serde::Serialize;
 use std::io::Read;
 use std::path::Path;
@@ -31,11 +31,16 @@ pub async fn list_files(path: String, ssh: Option<SshTarget>) -> Result<Vec<File
 /// binaries (a NUL byte anywhere in the sniff window). For SSH targets the
 /// read is delegated to the remote via `head -c`.
 #[tauri::command]
-pub async fn read_text_file(path: String, ssh: Option<SshTarget>) -> Result<TextFilePreview, String> {
+pub async fn read_text_file(
+    path: String,
+    ssh: Option<SshTarget>,
+) -> Result<TextFilePreview, String> {
     if let Some(ssh_target) = ssh {
-        return tauri::async_runtime::spawn_blocking(move || read_text_file_remote(&path, &ssh_target))
-            .await
-            .map_err(|e| format!("SSH read failed: {}", e))?;
+        return tauri::async_runtime::spawn_blocking(move || {
+            read_text_file_remote(&path, &ssh_target)
+        })
+        .await
+        .map_err(|e| format!("SSH read failed: {}", e))?;
     }
     tauri::async_runtime::spawn_blocking(move || read_text_file_local(&path))
         .await
@@ -51,7 +56,7 @@ fn read_text_file_local(path: &str) -> Result<TextFilePreview, String> {
     let size = metadata.len();
     let truncated = size > TEXT_PREVIEW_MAX_BYTES;
 
-    let mut file = std::fs::File::open(p).map_err(|e| format!("Open failed: {}", e))?;
+    let file = std::fs::File::open(p).map_err(|e| format!("Open failed: {}", e))?;
     let mut buf: Vec<u8> = Vec::with_capacity(size.min(TEXT_PREVIEW_MAX_BYTES) as usize);
     file.take(TEXT_PREVIEW_MAX_BYTES)
         .read_to_end(&mut buf)
@@ -63,7 +68,12 @@ fn read_text_file_local(path: &str) -> Result<TextFilePreview, String> {
     } else {
         String::from_utf8_lossy(&buf).into_owned()
     };
-    Ok(TextFilePreview { content, size, truncated, is_binary })
+    Ok(TextFilePreview {
+        content,
+        size,
+        truncated,
+        is_binary,
+    })
 }
 
 fn read_text_file_remote(path: &str, ssh_target: &SshTarget) -> Result<TextFilePreview, String> {
@@ -93,7 +103,12 @@ fn read_text_file_remote(path: &str, ssh_target: &SshTarget) -> Result<TextFileP
     };
     let is_binary = looks_binary(trimmed.as_bytes());
     let content = if is_binary { String::new() } else { trimmed };
-    Ok(TextFilePreview { content, size, truncated, is_binary })
+    Ok(TextFilePreview {
+        content,
+        size,
+        truncated,
+        is_binary,
+    })
 }
 
 fn looks_binary(bytes: &[u8]) -> bool {
@@ -101,12 +116,7 @@ fn looks_binary(bytes: &[u8]) -> bool {
 }
 
 fn list_files_remote(dir_path: &str, ssh_target: &SshTarget) -> Result<Vec<FileEntry>, String> {
-    // Use stat on the remote host for structured output
-    let cmd = format!(
-        "stat -f '%Sp %N' {} 2>/dev/null || ls -la {} 2>/dev/null",
-        dir_path, dir_path
-    );
-    // Simpler: use ls -1p which appends / to directories
+    // Use ls -1p, which appends a slash to directories.
     let cmd = format!("ls -1p {}", dir_path);
     let output = ssh_exec(ssh_target, &cmd)?;
     if output.is_empty() {
@@ -149,4 +159,24 @@ pub fn delete_file(path: String) -> Result<(), String> {
         return Err("File not found".to_string());
     }
     trash::delete(p).map_err(|e| format!("Trash error: {}", e))
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn local_delete_uses_windows_trash_backend() {
+        // feat-002/AC-5
+        let directory =
+            std::env::temp_dir().join(format!("shelf-trash-test-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&directory).expect("create trash fixture directory");
+        let file = directory.join("recoverable.txt");
+        std::fs::write(&file, "synthetic Shelf trash fixture").expect("write trash fixture");
+
+        super::delete_file(file.to_string_lossy().to_string())
+            .expect("move fixture to Recycle Bin");
+
+        assert!(!file.exists());
+        std::fs::remove_dir(&directory).expect("remove empty fixture directory");
+    }
 }

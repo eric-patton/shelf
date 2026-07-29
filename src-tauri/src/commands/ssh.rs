@@ -1,7 +1,7 @@
 use crate::session::SshTarget;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 
 const SSH_CONNECT_TIMEOUT_SECS: u64 = 10;
@@ -90,7 +90,10 @@ pub fn ssh_exec(ssh: &SshTarget, remote_command: &str) -> Result<String, String>
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        let code = output.status.code().map_or("".to_string(), |c| c.to_string());
+        let code = output
+            .status
+            .code()
+            .map_or("".to_string(), |c| c.to_string());
         return Err(if stderr.is_empty() {
             format!("ssh exited with code {}", code)
         } else {
@@ -99,37 +102,6 @@ pub fn ssh_exec(ssh: &SshTarget, remote_command: &str) -> Result<String, String>
     }
 
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
-}
-
-/// Build SSH args for an interactive PTY session (ssh -t).
-/// Returns (program, args) tuple suitable for PTY spawn.
-pub fn ssh_interactive_args(ssh: &SshTarget, remote_command: Option<&str>) -> (String, Vec<String>) {
-    let mut args: Vec<String> = Vec::new();
-
-    args.push("-o".to_string());
-    args.push("StrictHostKeyChecking=accept-new".to_string());
-    args.push("-o".to_string());
-    args.push(format!("ConnectTimeout={}", SSH_CONNECT_TIMEOUT_SECS));
-    args.push("-t".to_string());
-
-    if let Some(port) = ssh.port {
-        args.push("-p".to_string());
-        args.push(port.to_string());
-    }
-    if let Some(ref key) = ssh.identity_file {
-        args.push("-i".to_string());
-        args.push(key.clone());
-    }
-
-    let dest = ssh_dest(ssh);
-    args.push(dest);
-
-    if let Some(cmd) = remote_command {
-        args.push("--".to_string());
-        args.push(cmd.to_string());
-    }
-
-    ("ssh".to_string(), args)
 }
 
 /// Test SSH connectivity by running `echo OK` on the remote host.
@@ -160,7 +132,7 @@ pub async fn ssh_resolve_path(ssh: SshTarget, path: String) -> Result<String, St
             let quoted_rest = rest.replace('\'', r"'\''");
             format!("cd && cd './{}' 2>/dev/null && pwd -P", quoted_rest)
         } else if let Some(rest) = target.strip_prefix('~') {
-            // ~user form — leave the ~user prefix unquoted so the shell can
+            // ~user form - leave the ~user prefix unquoted so the shell can
             // resolve the user, but quote the remainder.
             let (user, after_slash) = rest.split_once('/').unwrap_or((rest, ""));
             if after_slash.is_empty() {

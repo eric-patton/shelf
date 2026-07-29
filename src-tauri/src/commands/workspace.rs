@@ -44,7 +44,11 @@ pub(crate) fn save_config(config: &ShelfConfig) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn add_workspace(path: String, provider: Option<SessionProvider>, ssh: Option<SshTarget>) -> Result<Workspace, String> {
+pub fn add_workspace(
+    path: String,
+    provider: Option<SessionProvider>,
+    ssh: Option<SshTarget>,
+) -> Result<Workspace, String> {
     let provider = provider.unwrap_or_default();
     let name = if let Some(ref ssh_target) = ssh {
         ssh_target.display_host()
@@ -72,10 +76,14 @@ pub fn add_workspace(path: String, provider: Option<SessionProvider>, ssh: Optio
         config.workspaces.iter().any(|w| {
             w.path == path
                 && w.provider == provider
-                && w.ssh.as_ref().map_or(false, |s| s.host == ssh_target.host)
+                && w.ssh.as_ref().is_some_and(|s| s.host == ssh_target.host)
         })
     } else {
-        config.workspaces.iter().any(|w| w.path == path && w.provider == provider && w.ssh.is_none())
+        config.workspaces.iter().any(|w| {
+            crate::platform_paths::paths_equal(&w.path, &path)
+                && w.provider == provider
+                && w.ssh.is_none()
+        })
     };
 
     if already_exists {
@@ -89,17 +97,25 @@ pub fn add_workspace(path: String, provider: Option<SessionProvider>, ssh: Optio
 }
 
 #[tauri::command]
-pub fn remove_workspace(path: String, provider: Option<SessionProvider>, ssh: Option<SshTarget>) -> Result<(), String> {
+pub fn remove_workspace(
+    path: String,
+    provider: Option<SessionProvider>,
+    ssh: Option<SshTarget>,
+) -> Result<(), String> {
     let provider = provider.unwrap_or_default();
     let mut config = load_config();
     if let Some(ref ssh_target) = ssh {
         config.workspaces.retain(|w| {
             !(w.path == path
                 && w.provider == provider
-                && w.ssh.as_ref().map_or(false, |s| s.host == ssh_target.host))
+                && w.ssh.as_ref().is_some_and(|s| s.host == ssh_target.host))
         });
     } else {
-        config.workspaces.retain(|w| !(w.path == path && w.provider == provider && w.ssh.is_none()));
+        config.workspaces.retain(|w| {
+            !(crate::platform_paths::paths_equal(&w.path, &path)
+                && w.provider == provider
+                && w.ssh.is_none())
+        });
     }
     save_config(&config)?;
     Ok(())
@@ -200,7 +216,7 @@ pub fn detect_terminals() -> Result<serde_json::Value, String> {
     #[cfg(target_os = "windows")]
     {
         let creation_no_window = CREATE_NO_WINDOW;
-        for shell_bin in &["powershell", "cmd", "pwsh"] {
+        for shell_bin in &["pwsh", "powershell", "cmd"] {
             if std::process::Command::new("where")
                 .arg(shell_bin)
                 .creation_flags(creation_no_window)
@@ -233,7 +249,25 @@ pub fn detect_terminals() -> Result<serde_json::Value, String> {
         }
     }
 
-    Ok(serde_json::json!({ "shells": shells }))
+    let default_shell = preferred_shell(&shells);
+    Ok(serde_json::json!({
+        "shells": shells,
+        "defaultShell": default_shell,
+    }))
+}
+
+fn preferred_shell(shells: &[String]) -> String {
+    #[cfg(target_os = "windows")]
+    let preferred = ["pwsh", "powershell", "cmd"];
+    #[cfg(not(target_os = "windows"))]
+    let preferred = ["zsh", "bash", "fish"];
+
+    preferred
+        .iter()
+        .find(|candidate| shells.iter().any(|shell| shell == **candidate))
+        .map(|value| (*value).to_string())
+        .or_else(|| shells.first().cloned())
+        .unwrap_or_else(|| preferred[0].to_string())
 }
 
 #[tauri::command]
@@ -367,9 +401,7 @@ fn cli_candidates(bin: &str) -> Vec<PathBuf> {
 
     #[cfg(target_os = "windows")]
     {
-        candidates.push(PathBuf::from(format!(
-            "C:/Program Files/nodejs/{bin}.cmd"
-        )));
+        candidates.push(PathBuf::from(format!("C:/Program Files/nodejs/{bin}.cmd")));
         if let Some(home) = dirs::home_dir() {
             candidates.extend([
                 home.join(format!("AppData/Roaming/npm/{bin}.cmd")),
@@ -466,7 +498,7 @@ fn find_command_on_windows(command_name: &str) -> Option<String> {
     // directly-executable wrappers (.cmd / .exe / .bat) over .ps1. portable-pty
     // can't CreateProcess a .ps1 directly, and even when invoked through a
     // shell a quoted .ps1 path is parsed by PowerShell as a string literal
-    // (needs the `&` call operator) — both failure modes we want to avoid.
+    // (needs the `&` call operator) - both failure modes we want to avoid.
     // `[Console]::OutputEncoding = UTF8` keeps non-ASCII paths (CJK usernames,
     // etc.) intact across the stdio pipe.
     let script = format!(
@@ -549,4 +581,30 @@ fn find_command_with_shell(shell: &str, command_name: &str) -> Option<String> {
 
 fn is_executable_file(path: &Path) -> bool {
     path.is_file()
+}
+
+#[cfg(test)]
+mod terminal_detection_tests {
+    use super::preferred_shell;
+
+    #[test]
+    fn preferred_shell_uses_platform_order() {
+        // feat-001/AC-1
+        #[cfg(target_os = "windows")]
+        {
+            assert_eq!(
+                preferred_shell(&["powershell".into(), "pwsh".into(), "cmd".into()]),
+                "pwsh"
+            );
+            assert_eq!(
+                preferred_shell(&["powershell".into(), "cmd".into()]),
+                "powershell"
+            );
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            assert_eq!(preferred_shell(&["bash".into(), "zsh".into()]), "zsh");
+        }
+    }
 }

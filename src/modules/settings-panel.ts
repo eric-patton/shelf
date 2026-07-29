@@ -3,6 +3,7 @@ import { tauriInvoke } from "../helpers";
 import { t, setLang, getLang } from "../i18n";
 import type { AiSettings, AiModelListResponse, SessionProvider } from "../types";
 import { buildLocalCliCommand, formatCliArgs, formatCliCommand, parseCliArgs } from "./cli-launch";
+import { selectShell, shellDisplayName, type TerminalDetection } from "./shell-selection";
 
 type AppTheme = "dark" | "light" | "github-light" | "solarized-light" | "dracula" | "monokai";
 
@@ -202,13 +203,14 @@ export async function _showSettings(app: any, appThemes: Set<AppTheme>) {
 
   try {
     const [data, aiSettings] = await Promise.all([
-      tauriInvoke<any>("detect_terminals"),
+      tauriInvoke<TerminalDetection>("detect_terminals"),
       tauriInvoke<AiSettings>("get_ai_settings"),
     ]);
     shellSel.innerHTML = "";
-    for (const s of data.shells || ["zsh"]) {
+    app.shellSetting = selectShell(app.shellSetting, data);
+    for (const s of data.shells || [data.defaultShell]) {
       const opt = document.createElement("option");
-      opt.value = s; opt.textContent = s;
+      opt.value = s; opt.textContent = shellDisplayName(s);
       if (s === app.shellSetting) opt.selected = true;
       shellSel.appendChild(opt);
     }
@@ -222,7 +224,7 @@ export async function _showSettings(app: any, appThemes: Set<AppTheme>) {
 
   panel.querySelector("#settings-ai-load-models")!.addEventListener("click", () => app._loadAiModelsForSettings(panel));
 
-  // Logs section — populate the path async; safe if the dir hasn't been
+  // Logs section - populate the path async; safe if the dir hasn't been
   // created yet (first launch races plugin initialization).
   const logPathInput = panel.querySelector("#settings-log-path") as HTMLInputElement;
   const logOpenBtn = panel.querySelector("#settings-log-open") as HTMLButtonElement;

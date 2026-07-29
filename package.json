@@ -1,11 +1,14 @@
 {
   "name": "shelf",
   "private": true,
-  "version": "0.2.27",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "test": "vitest run",
+    "test:e2e": "node e2e/windows-smoke.e2e.mjs",
+    "test:release": "pwsh -NoLogo -NoProfile -File scripts/qa/verify-release-contract.ps1",
     "preview": "vite preview",
     "tauri": "tauri"
   },
@@ -25,6 +28,7 @@
   "devDependencies": {
     "@tauri-apps/cli": "2.10.1",
     "typescript": "~5.7",
-    "vite": "^6"
+    "vite": "^6.4.3",
+    "vitest": "^3.2.7"
   }
 }

@@ -21,7 +21,7 @@ pub fn scan_sessions(workspace_path: &str) -> Result<Vec<Session>, String> {
         let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
         let path = entry.path();
 
-        if path.extension().map_or(false, |ext| ext == "jsonl") {
+        if path.extension().is_some_and(|ext| ext == "jsonl") {
             if let Ok(Some(session)) = parse_session_file(&path) {
                 sessions.push(session);
             }
@@ -44,10 +44,10 @@ fn parse_session_file(path: &PathBuf) -> Result<Option<Session>, String> {
     // The filename is `<uuid>.jsonl`, so use that as the authoritative session
     // id. Claude writes a few non-user lines (permission-mode, file-history-
     // snapshot, ...) before the first user message, and previously we waited
-    // until we saw a `type:"user"` line to harvest the session id — which
+    // until we saw a `type:"user"` line to harvest the session id - which
     // meant freshly-spawned sessions stayed invisible until the user actually
     // typed something, and the "+ new claude" pending tab never linked.
-    let mut session_id = path
+    let session_id = path
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("")

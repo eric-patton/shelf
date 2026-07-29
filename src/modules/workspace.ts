@@ -4,6 +4,7 @@ import { t } from "../i18n";
 import { showToast } from "./toast";
 import { WorkspaceItem, Session, SessionProvider, SshTarget } from "../types";
 import { scanCommandForProvider } from "./cli-launch";
+import { pathsEqual } from "./platform-paths";
 
 export class WorkspaceManager {
   workspaces: WorkspaceItem[] = [];
@@ -64,7 +65,9 @@ export class WorkspaceManager {
     try {
       await tauriInvoke("remove_workspace", { path, provider, ssh });
       const key = this.workspaceKey(path, provider);
-      this.workspaces = this.workspaces.filter((w) => !(w.path === path && w.provider === provider));
+      this.workspaces = this.workspaces.filter(
+        (w) => !(pathsEqual(w.path, path, !!w.ssh) && w.provider === provider),
+      );
       this.sessions.delete(key);
       this.expandedWorkspaces.delete(key);
       this.sessionPages.delete(key);

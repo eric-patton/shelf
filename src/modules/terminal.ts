@@ -169,7 +169,7 @@ function applyWindowsPtyOptions(
   onPtyWrite: (tabId: string, data: string) => void,
 ) {
   if (!navigator.platform.toLowerCase().includes("win")) return;
-  // Enables xterm's WindowsPtyHeuristics — fixes TUI cursor jumping under ConPTY
+  // Enables xterm's WindowsPtyHeuristics - fixes TUI cursor jumping under ConPTY
   // (e.g. Claude Code's TUI input box).
   terminal.options.windowsPty = { backend: "conpty" };
   terminal.options.reflowCursorLine = true;
@@ -594,6 +594,7 @@ export function createTerminalTab(
     workspacePath: options?.workspacePath,
     cwd: options?.cwd,
     shell: options?.command ? undefined : options?.shell,
+    ssh: options?.ssh,
     restoreKind: options?.sessionId ? "session" : options?.command ? "new-session" : "terminal",
     title,
     closable: true,
@@ -612,7 +613,7 @@ export function createTerminalTab(
   // Codex CLI emits OSC 9 or BEL via tui.notification_method, on
   // agent-turn-complete / approval-requested / plan-mode-prompt. pi and other
   // terminal agents may also use BEL/OSC notifications. Plain zsh
-  // BELs on completion errors and the `notify` option — also a legitimate
+  // BELs on completion errors and the `notify` option - also a legitimate
   // attention trigger.
   const markUnreadIfBackground = () => {
     if (options?.suppressUnreadWhile?.(tabId) === true) return;
@@ -623,7 +624,7 @@ export function createTerminalTab(
   };
   terminal.onBell(() => markUnreadIfBackground());
   // OSC 9: iTerm2 growl notification. `OSC 9 ; 4 ; ...` is iTerm2's progress
-  // indicator (continuous updates during long ops) — explicitly skip that.
+  // indicator (continuous updates during long ops) - explicitly skip that.
   terminal.parser.registerOscHandler(9, (data: string) => {
     if (!data.startsWith("4;")) markUnreadIfBackground();
     return false;

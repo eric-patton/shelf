@@ -1,6 +1,6 @@
 {
   "productName": "Shelf",
-  "version": "0.2.27",
+  "version": "0.3.0",
   "identifier": "com.shelf.app",
   "build": {
     "frontendDist": "../dist",
@@ -19,6 +19,12 @@
     ],
     "macOS": {
       "signingIdentity": "-"
+    },
+    "windows": {
+      "allowDowngrades": false,
+      "nsis": {
+        "installMode": "currentUser"
+      }
     }
   },
   "app": {

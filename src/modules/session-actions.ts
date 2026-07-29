@@ -9,6 +9,13 @@ import { showToast } from "./toast";
 import { buildSshArgs } from "./ssh";
 import { buildLocalCliCommand, buildRemoteCliCommand } from "./cli-launch";
 import {
+  formatPathForInsertion,
+  pathEqualOrNested,
+  pathsEqual,
+  type PathInsertionDestination,
+} from "./platform-paths";
+import { findPendingSession } from "./pending-session";
+import {
   PENDING_SESSION_DISCOVERY_TIMEOUT_MS,
   PENDING_SESSION_POLL_INTERVAL_MS,
   PENDING_SESSION_STABILIZE_MS,
@@ -70,11 +77,11 @@ export async function _renameSessionPrompt(app: any, session: Session) {
 
 export async function _deleteSession(app: any, session: Session, wsPath: string) {
   const ws = (app.ws.workspaces as WorkspaceItem[]).find(
-    (w) => w.path === wsPath && w.provider === session.provider,
+    (w) => pathsEqual(w.path, wsPath, !!w.ssh) && w.provider === session.provider,
   );
   const sshTarget = ws?.ssh;
 
-  // SSH sessions are deleted with `rm` on the remote host — there's no
+  // SSH sessions are deleted with `rm` on the remote host - there's no
   // recycle bin to fall back on, so we always confirm. Local sessions go to
   // the OS trash, which is undoable, so we skip the prompt and rely on the
   // toast for visibility.
@@ -247,18 +254,7 @@ export function _findSessionForPendingSession(app: any, pending: PendingSessionT
       .map((item) => item.linkedSessionId)
       .filter((id): id is string => !!id && id !== pending.linkedSessionId),
   );
-  const candidates = sessions.filter((session) => (
-    !pending.baselineIds.has(session.id) &&
-    !claimedSessionIds.has(session.id)
-  ));
-  if (candidates.length === 0) return undefined;
-  const workspaceCandidates = candidates.filter((session) => (
-    !session.cwd ||
-    session.cwd === pending.workspacePath ||
-    session.cwd.startsWith(pending.workspacePath + "/")
-  ));
-  return (workspaceCandidates.length > 0 ? workspaceCandidates : candidates)
-    .sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
+  return findPendingSession(pending, sessions, claimedSessionIds);
 }
 
 export function _linkPendingSessionTab(app: any, tabId: string, pending: PendingSessionTab, session: Session) {
@@ -308,7 +304,7 @@ export function _createBlankTab(app: any, cwd?: string) {
   let provider: SessionProvider | undefined;
   if (cwd) {
     const matches = (app.ws.workspaces as WorkspaceItem[])
-      .filter((w: WorkspaceItem) => cwd === w.path || cwd.startsWith(w.path + "/"))
+      .filter((w: WorkspaceItem) => pathEqualOrNested(cwd, w.path, !!w.ssh))
       .sort((a: WorkspaceItem, b: WorkspaceItem) => {
         if (a.provider === app.ws.selectedProvider && b.provider !== app.ws.selectedProvider) return -1;
         if (b.provider === app.ws.selectedProvider && a.provider !== app.ws.selectedProvider) return 1;
@@ -339,7 +335,7 @@ export function _openSessionTab(app: any, session: Session, wsPath: string) {
   const cwd = session.cwd || wsPath;
   // Find the workspace to check if it's SSH
   const ws = app.ws.workspaces.find(
-    (w: any) => w.path === wsPath && w.provider === session.provider,
+    (w: any) => pathsEqual(w.path, wsPath, !!w.ssh) && w.provider === session.provider,
   );
   const extraArgs = app._cliArgsForProvider(session.provider);
   const bin = app._cliPathForProvider(session.provider);
@@ -400,7 +396,20 @@ export function _onTerminalDrop(app: any, path: string) {
   const tab = app.tabs.getActiveTab();
   if (tab && tab.id !== START_TAB_ID && tab.pty) {
     app._clearPendingSessionTab(tab.id);
-    writeToPty(tab, `'${path.replace(/'/g, "'\\''")}' `);
+    let destination: PathInsertionDestination;
+    if (tab.ssh) {
+      destination = "posix";
+    } else if (tab.sessionProvider) {
+      destination = "agent";
+    } else {
+      const shell = (tab.shell || app.shellSetting || "").split(/[\\/]/).pop()?.toLowerCase();
+      destination = shell === "cmd" || shell === "cmd.exe"
+        ? "cmd"
+        : shell === "powershell" || shell === "powershell.exe" || shell === "pwsh" || shell === "pwsh.exe"
+          ? "powershell"
+          : "posix";
+    }
+    writeToPty(tab, `${formatPathForInsertion(path, destination)} `);
   }
 }
 
@@ -408,7 +417,7 @@ export function _onWorkspaceSelected(app: any, newPath: string) {
   app.selectedWorkspace = newPath;
   app._loadFileTree(newPath);
   const activeTab = app.tabs.getActiveTab();
-  if (!activeTab || activeTab.workspacePath !== newPath) {
+  if (!activeTab || !activeTab.workspacePath || !pathsEqual(activeTab.workspacePath, newPath, !!activeTab.ssh)) {
     app._showStartPage();
     app.selectedWorkspace = newPath;
     app.ws.selectedWorkspace = newPath;
@@ -418,15 +427,17 @@ export function _onWorkspaceSelected(app: any, newPath: string) {
 
 export async function _loadFileTree(app: any, path: string) {
   const requestPath = path;
+  const requestWorkspace = app.ws.workspaces.find(
+    (w: any) => pathsEqual(w.path, path, !!w.ssh) && w.ssh,
+  );
   app.fileTreeEl.innerHTML = `<div class="tree-empty"><i data-lucide="loader" class="spin" style="width:12px;height:12px;vertical-align:middle;margin-right:4px;"></i> ${t("session.loading")}</div>`;
   refreshIcons();
   try {
     // Check if the selected workspace is SSH
-    const ws = app.ws.workspaces.find((w: any) => w.path === path && w.ssh);
-    const ssh = ws?.ssh || null;
+    const ssh = requestWorkspace?.ssh || null;
     const files = await tauriInvoke<FileEntry[]>("list_files", { path, ssh });
     // Bail if user switched workspaces while we were loading.
-    if (app.selectedWorkspace !== requestPath) return;
+    if (!app.selectedWorkspace || !pathsEqual(app.selectedWorkspace, requestPath, !!ssh)) return;
     app.expandedDirs.clear();
     app.loadedDirs.clear();
     clearFileCache();
@@ -441,7 +452,7 @@ export async function _loadFileTree(app: any, path: string) {
     );
   } catch (e) {
     console.error("List files:", e);
-    if (app.selectedWorkspace === requestPath) {
+    if (app.selectedWorkspace && pathsEqual(app.selectedWorkspace, requestPath, !!requestWorkspace?.ssh)) {
       app.fileTreeEl.innerHTML = `<div class="tree-empty">${t("file.failed")}</div>`;
     }
   }

@@ -2,6 +2,8 @@ use tauri::Manager;
 use tauri_plugin_log::{Target, TargetKind};
 
 mod commands;
+mod platform_paths;
+mod process_tree;
 mod pty_plugin;
 mod session;
 
@@ -15,7 +17,9 @@ pub fn run() {
                     //   macOS:   ~/Library/Logs/com.shelf.app/Shelf.log
                     //   Windows: %LOCALAPPDATA%\com.shelf.app\logs\Shelf.log
                     //   Linux:   ~/.local/share/com.shelf.app/logs/Shelf.log
-                    Target::new(TargetKind::LogDir { file_name: Some("Shelf".into()) }),
+                    Target::new(TargetKind::LogDir {
+                        file_name: Some("Shelf".into()),
+                    }),
                     // Also keep stderr/console output for `target/debug/shelf` debugging.
                     Target::new(TargetKind::Stdout),
                 ])

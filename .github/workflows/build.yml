@@ -1,24 +1,15 @@
-name: Build Shelf
+name: Build and publish Shelf
 
 on:
   push:
-    tags: ['v*']
-
-permissions:
-  contents: write
+    tags: ["v*"]
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: macos-latest
-            target: aarch64-apple-darwin
-          - platform: windows-latest
-            target: x86_64-pc-windows-msvc
-
-    runs-on: ${{ matrix.platform }}
+  macos:
+    name: Build macOS
+    runs-on: macos-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -26,38 +17,156 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
+          cache: npm
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: aarch64-apple-darwin
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: './src-tauri -> target'
+          workspaces: "./src-tauri -> target"
 
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build with Tauri
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
-          releaseName: 'Shelf ${{ github.ref_name }}'
-          releaseBody: 'Download and install Shelf for your platform.'
-          releaseDraft: false
-          prerelease: false
+      - name: Build macOS DMG
+        run: npm run tauri build -- --target aarch64-apple-darwin --bundles dmg
 
-      - name: Upload build artifacts
+      - name: Write macOS checksums
+        run: |
+          find src-tauri/target/aarch64-apple-darwin/release/bundle -name '*.dmg' -print0 |
+            sort -z |
+            xargs -0 shasum -a 256 > src-tauri/target/aarch64-apple-darwin/release/bundle/SHA256SUMS.macos.txt
+
+      - name: Upload macOS assets
         uses: actions/upload-artifact@v4
         with:
-          name: shelf-${{ matrix.target }}
+          name: shelf-macos-aarch64
           path: |
-            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/aarch64-apple-darwin/release/bundle/**/*.dmg
+            src-tauri/target/aarch64-apple-darwin/release/bundle/SHA256SUMS.macos.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  windows:
+    name: Build and sign Windows
+    runs-on: windows-latest
+    environment: windows-release
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Azure login with GitHub OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install Artifact Signing Client Tools
+        shell: pwsh
+        run: |
+          $ProgressPreference = 'SilentlyContinue'
+          Invoke-WebRequest `
+            -Uri "https://download.microsoft.com/download/70ad2c3b-761f-4aa9-a9de-e7405aa2b4c1/ArtifactSigningClientTools.msi" `
+            -OutFile ArtifactSigningClientTools.msi
+          $process = Start-Process msiexec.exe -Wait -PassThru `
+            -ArgumentList '/I ArtifactSigningClientTools.msi /quiet /norestart'
+          if ($process.ExitCode -ne 0) {
+            throw "Artifact Signing Client Tools installer failed with exit code $($process.ExitCode)."
+          }
+          Remove-Item -LiteralPath ArtifactSigningClientTools.msi
+
+      - name: Build and sign Windows application and installers
+        env:
+          ARTIFACT_SIGNING_ENDPOINT: ${{ vars.ARTIFACT_SIGNING_ENDPOINT }}
+          ARTIFACT_SIGNING_ACCOUNT: ${{ vars.ARTIFACT_SIGNING_ACCOUNT }}
+          ARTIFACT_SIGNING_PROFILE: ${{ vars.ARTIFACT_SIGNING_PROFILE }}
+        run: npm run tauri build -- --bundles msi,nsis --config src-tauri/tauri.windows-release.conf.json
+
+      - name: Verify Windows signatures
+        shell: pwsh
+        env:
+          EXPECTED_WINDOWS_PUBLISHER: ${{ vars.WINDOWS_PUBLISHER_MATCH }}
+        run: |
+          ./scripts/qa/verify-windows-signatures.ps1 `
+            -Path src-tauri/target/release/shelf.exe `
+            -PublisherMatch $env:EXPECTED_WINDOWS_PUBLISHER
+          ./scripts/qa/verify-windows-signatures.ps1 `
+            -Path src-tauri/target/release/bundle `
+            -PublisherMatch $env:EXPECTED_WINDOWS_PUBLISHER
+
+      - name: Write Windows checksums
+        shell: pwsh
+        run: |
+          ./scripts/qa/write-checksums.ps1 `
+            -Path src-tauri/target/release/bundle `
+            -OutputFile src-tauri/target/release/bundle/SHA256SUMS.windows.txt
+
+      - name: Upload Windows assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: shelf-windows-x64
+          path: |
             src-tauri/target/release/bundle/**/*.msi
             src-tauri/target/release/bundle/**/*.exe
+            src-tauri/target/release/bundle/SHA256SUMS.windows.txt
+          if-no-files-found: error
           retention-days: 30
+
+  publish:
+    name: Publish release
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: pwsh
+        run: |
+          $assets = Get-ChildItem -LiteralPath release-assets -Recurse -File |
+            Select-Object -ExpandProperty FullName
+          if (gh release view $env:RELEASE_TAG 2>$null) {
+            gh release upload $env:RELEASE_TAG $assets --clobber
+          } else {
+            gh release create $env:RELEASE_TAG $assets `
+              --title "Shelf $env:RELEASE_TAG" `
+              --generate-notes `
+              --verify-tag
+          }

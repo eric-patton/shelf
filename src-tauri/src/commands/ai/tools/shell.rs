@@ -11,11 +11,11 @@ impl Tool for RunShellCommandTool {
     async fn definition(&self, _prompt: String) -> ToolDefinition {
         ToolDefinition {
             name: Self::NAME.to_string(),
-            description: "Run a shell command in a background non-interactive zsh process. Use it for flexible local exploration such as rg/find/jq/sqlite3. Output is truncated by timeout, byte and line limits. Dangerous commands may require explicit user approval before execution.".to_string(),
+            description: shell_tool_description().to_string(),
             parameters: json!({
                 "type": "object",
                 "properties": {
-                    "command": { "type": "string", "description": "Shell command to run with zsh -lc." },
+                    "command": { "type": "string", "description": shell_command_description() },
                     "cwd": { "type": "string", "description": "Working directory. Defaults to the user's home directory." },
                     "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 60000 },
                     "maxBytes": { "type": "integer", "minimum": 1000, "maximum": 100000 },

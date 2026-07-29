@@ -5,6 +5,7 @@ import { t, getLang } from "../i18n";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { showToast } from "./toast";
 import { looksLikeTextFile, openFilePreview } from "./file-preview";
+import { relativePath } from "./platform-paths";
 
 const childCache = new Map<string, FileEntry[]>();
 
@@ -87,7 +88,9 @@ export async function renderFileTree(
       e.preventDefault();
       e.stopPropagation();
       const absPath = file.path;
-      const relPath = selectedWorkspacePath ? absPath.replace(selectedWorkspacePath + "/", "") : absPath;
+      const relPath = selectedWorkspacePath
+        ? relativePath(absPath, selectedWorkspacePath, !!currentSsh)
+        : absPath;
       const isMac = navigator.platform.toLowerCase().includes("mac");
       showContextMenu([
         { label: t("context.refresh"), action: () => {

@@ -1,5 +1,6 @@
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import type { DragDropEvent } from "@tauri-apps/api/webview";
+import { pathBasename } from "./platform-paths";
 
 type DropZone = "terminal" | "workspace";
 type LogicalDragPosition = { x: number; y: number; at: number };
@@ -105,7 +106,7 @@ export function setupDragDrop(
     if (!dragOverlay) {
       dragOverlay = document.createElement("div");
       dragOverlay.className = "drag-floating-label";
-      dragOverlay.textContent = "\u{1F4C4} " + (dragPath.split("/").pop() || dragPath);
+      dragOverlay.textContent = "\u{1F4C4} " + pathBasename(dragPath);
       document.body.appendChild(dragOverlay);
     }
     // Center label on cursor

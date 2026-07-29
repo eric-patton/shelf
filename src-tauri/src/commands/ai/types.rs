@@ -195,7 +195,7 @@ pub(crate) struct RemoveAiSessionMappingArgs {
     pub(crate) session_id: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(default, rename_all = "camelCase")]
 pub struct RunShellCommandArgs {
     pub command: String,
@@ -204,17 +204,4 @@ pub struct RunShellCommandArgs {
     pub max_bytes: Option<usize>,
     pub max_lines: Option<usize>,
     pub approved: bool,
-}
-
-impl Default for RunShellCommandArgs {
-    fn default() -> Self {
-        Self {
-            command: String::new(),
-            cwd: None,
-            timeout_ms: None,
-            max_bytes: None,
-            max_lines: None,
-            approved: false,
-        }
-    }
 }

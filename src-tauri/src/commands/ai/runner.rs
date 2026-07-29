@@ -50,10 +50,7 @@ where
             emit_ai_event(&app, "tool-start", Some(id), Some(args), Some(tool));
             if tool_name == SHELL_TOOL_NAME {
                 let shell_args = shell_args_from_json(_args);
-                if !self.shell_auto_approve
-                    && !shell_args.approved
-                    && is_risky_shell_command(&shell_args.command)
-                {
+                if shell_command_requires_approval(&shell_args, self.shell_auto_approve) {
                     let payload = shell_approval_payload(&shell_args);
                     emit_ai_event(
                         &app,
@@ -96,17 +93,11 @@ where
         }
     }
 
-    fn on_text_delta(
-        &self,
-        _text_delta: &str,
-        _aggregated_text: &str,
-    ) -> impl Future<Output = HookAction> + Send {
-        async move {
-            if ai_cancel_requested() {
-                HookAction::terminate(format!("{}user requested stop", AI_CANCELLED_PREFIX))
-            } else {
-                HookAction::cont()
-            }
+    async fn on_text_delta(&self, _text_delta: &str, _aggregated_text: &str) -> HookAction {
+        if ai_cancel_requested() {
+            HookAction::terminate(format!("{}user requested stop", AI_CANCELLED_PREFIX))
+        } else {
+            HookAction::cont()
         }
     }
 }
