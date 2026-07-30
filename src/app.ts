@@ -844,4 +844,11 @@ class App {
   private _renderTabs() { return workspaceView._renderTabs(this); }
 }
 
-new App().init();
+async function startApp() {
+  if (import.meta.env.VITE_SHELF_E2E === "1") {
+    await import("@wdio/tauri-plugin");
+  }
+  await new App().init();
+}
+
+void startApp();

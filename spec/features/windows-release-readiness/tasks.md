@@ -70,3 +70,27 @@
   `windows-latest` reproduced the same WebView2 automation-port failure as Tauri's official
   WebDriver example. Keep the general Windows quality matrix on `windows-latest`. File:
   `.github/workflows/ci.yml`. Trace: `feat-004/AC-1`, `feat-004/AC-2`.
+- [x] T21 Add the official WebdriverIO Tauri service, guest plugin, and embedded provider as
+  test-only dependencies. Feature-gate both Rust plugins behind `e2e`, and load the guest plugin
+  only in an E2E frontend build. Files: `package.json`, `package-lock.json`,
+  `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, `src-tauri/src/lib.rs`,
+  `src-tauri/tauri.conf.json`, `src-tauri/tauri.e2e.conf.json`, and `src/app.ts`. Observed: normal
+  Cargo resolution excludes both optional plugins, the E2E build registers them through the
+  explicit feature, and npm audit reports zero vulnerabilities. Trace: `feat-004/AC-2`.
+- [x] T22 Replace the raw external-driver harness with a WebdriverIO configuration and test that
+  proves the home, Windows shell settings, PowerShell terminal creation, and command output through
+  the embedded provider. Files: `e2e/wdio.conf.mjs`, `e2e/windows-smoke.e2e.mjs`. Observed: the
+  real local app passed the traced WebdriverIO smoke through the embedded W3C session. Trace:
+  `feat-004/AC-2`.
+- [x] T23 Update Windows desktop CI to build with the explicit `e2e` feature on `windows-latest`,
+  remove all external WebView2 and `tauri-driver` setup, and extend the release contract to enforce
+  the test-only boundary and embedded provider. Permit the official service to own its current
+  Edge compatibility preflight without using the external driver launch path. Remove obsolete
+  setup scripts. Files: `.github/workflows/ci.yml`,
+  `scripts/qa/verify-release-contract.ps1`, `scripts/qa/update-webview2-runtime.ps1`, and
+  `scripts/qa/ensure-msedgedriver.ps1`. Observed: the release contract passed and verifies that
+  public release builds cannot enable the E2E feature or capability. Trace: `feat-004/AC-1`,
+  `feat-004/AC-2`.
+- [ ] T24 Run the local E2E, build, lint, unit, release-contract, and dependency-audit gates, then
+  push and confirm the complete hosted workflow passes. Fold the approved delta and append a
+  convergence audit. Trace: `feat-004/AC-1`, `feat-004/AC-2`, `feat-004/AC-3`.

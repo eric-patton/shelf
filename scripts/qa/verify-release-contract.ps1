@@ -12,6 +12,18 @@ function Assert-Contains {
     }
 }
 
+function Assert-NotContains {
+    param(
+        [string]$Path,
+        [string]$Pattern,
+        [string]$Message
+    )
+    $content = Get-Content -LiteralPath $Path -Raw
+    if ($content -match $Pattern) {
+        throw "$Message ($Path)"
+    }
+}
+
 $package = Get-Content -LiteralPath "package.json" -Raw | ConvertFrom-Json
 $tauri = Get-Content -LiteralPath "src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json
 $releaseConfig = Get-Content -LiteralPath "src-tauri/tauri.windows-release.conf.json" -Raw |
@@ -22,11 +34,23 @@ $updateSource = Get-Content -LiteralPath "src-tauri/src/commands/update.rs" -Raw
 
 # feat-004/AC-1
 Assert-Contains ".github/workflows/ci.yml" "windows-latest" "CI must run on Windows"
-Assert-Contains ".github/workflows/ci.yml" "windows-2022" "Desktop CI must use the compatible Windows image"
 Assert-Contains ".github/workflows/ci.yml" "macos-latest" "CI must run on macOS"
 Assert-Contains ".github/workflows/ci.yml" "cargo clippy.*-D warnings" "CI must deny Clippy warnings"
 Assert-Contains ".github/workflows/ci.yml" "tauri build -- --debug --no-bundle" "CI must build debug Tauri"
-Assert-Contains ".github/workflows/ci.yml" "update-webview2-runtime\.ps1" "Desktop CI must update WebView2 before matching Edge WebDriver"
+
+# feat-004/AC-2
+Assert-Contains ".github/workflows/ci.yml" "--features e2e --config src-tauri/tauri\.e2e\.conf\.json" "Desktop CI must use the test-only E2E build"
+Assert-Contains "e2e/wdio.conf.mjs" "@wdio/tauri-service" "Desktop E2E must use the official Tauri service"
+Assert-Contains "e2e/wdio.conf.mjs" 'driverProvider:\s*"embedded"' "Desktop E2E must use the embedded provider"
+Assert-Contains "e2e/windows-smoke.e2e.mjs" "feat-004/AC-2" "Desktop E2E must trace AC-2"
+Assert-Contains "src-tauri/Cargo.toml" 'e2e = \["dep:tauri-plugin-wdio", "dep:tauri-plugin-wdio-webdriver"\]' "Rust test plugins must use an explicit feature"
+Assert-Contains "src-tauri/src/lib.rs" '#\[cfg\(feature = "e2e"\)\]' "Rust test plugins must be conditionally registered"
+Assert-Contains "src/app.ts" 'VITE_SHELF_E2E' "The frontend test plugin must be conditionally loaded"
+Assert-Contains "src-tauri/tauri.conf.json" '"capabilities": \["default"\]' "Production must select only the default capability"
+Assert-Contains "src-tauri/tauri.e2e.conf.json" '"wdio:default"' "The E2E build must add the test plugin capability"
+Assert-Contains "src-tauri/tauri.e2e.conf.json" '"wdio-webdriver:default"' "The E2E build must add the embedded driver capability"
+Assert-NotContains ".github/workflows/ci.yml" "tauri-driver|msedgedriver|update-webview2-runtime" "Desktop CI must not install an external browser driver"
+Assert-NotContains ".github/workflows/build.yml" "--features e2e|tauri\.e2e\.conf" "Release builds must exclude E2E plugins"
 
 # feat-004/AC-3
 Assert-Contains ".github/workflows/ci.yml" "npm audit --audit-level=high" "CI must audit npm"

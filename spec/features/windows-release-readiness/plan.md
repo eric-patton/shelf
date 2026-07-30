@@ -4,9 +4,13 @@
 
 - Add parallel Windows and macOS pull-request jobs for the existing static, native, and debug build
   suites.
-- Add a dedicated Windows W3C WebDriver job using `tauri-driver`, matching Microsoft Edge WebDriver,
-  and stable DOM identifiers.
-- Keep the desktop harness dependency-free and run a previously built debug executable.
+- Add a dedicated Windows W3C WebDriver job using WebdriverIO's official Tauri service, its
+  embedded provider, and stable DOM identifiers.
+- Feature-gate the test-only embedded driver and guest plugin so release builds do not register or
+  ship desktop-test support.
+- Allow WebdriverIO service 1.2.0 to complete its Windows Edge compatibility preflight, including a
+  service-owned driver cache when needed, while proving that the W3C session uses only the embedded
+  provider.
 - Upgrade vulnerable development tooling within compatible majors and run npm plus Cargo audits.
 - Bump the Windows GA baseline to version `0.3.0` across all version sources.
 - Split Windows release creation into build, application signing, bundling, installer signing,
@@ -27,7 +31,8 @@
 ## Verification approach
 
 - `feat-004/AC-1` enters through workflow-contract tests and local equivalents of every command.
-- `feat-004/AC-2` enters through `e2e/windows-smoke.e2e.mjs` against the debug executable.
+- `feat-004/AC-2` enters through WebdriverIO and `e2e/windows-smoke.e2e.mjs` against a debug
+  executable built with the explicit `e2e` feature.
 - `feat-004/AC-3` enters through `npm audit --audit-level=high` and `cargo audit`.
 - `feat-004/AC-4` enters through a version-consistency script and local MSI plus NSIS packaging.
 - `feat-004/AC-5` enters through workflow-contract tests and the Windows signature verifier, with the
