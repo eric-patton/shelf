@@ -1,5 +1,6 @@
-import { access } from "node:fs/promises";
-import { delimiter, resolve } from "node:path";
+import { access, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { delimiter, join, resolve } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 
 const root = resolve(import.meta.dirname, "..");
@@ -15,6 +16,9 @@ const tauriDriver =
   resolve(process.env.USERPROFILE || "", ".cargo/bin/tauri-driver.exe");
 const endpoint = "http://127.0.0.1:4444";
 const elementKey = "element-6066-11e4-a52e-4f735466cecf";
+const webviewUserDataFolder = await mkdtemp(
+  join(tmpdir(), "shelf-windows-webdriver-"),
+);
 
 await access(binary);
 await access(tauriDriver);
@@ -135,6 +139,9 @@ try {
       alwaysMatch: {
         "tauri:options": {
           application: binary,
+          webviewOptions: {
+            userDataFolder: webviewUserDataFolder,
+          },
         },
       },
     },
@@ -181,4 +188,7 @@ try {
     await request("DELETE", `/session/${sessionId}`).catch(() => {});
   }
   terminateOwnedDriver();
+  await rm(webviewUserDataFolder, { recursive: true, force: true }).catch(
+    () => {},
+  );
 }

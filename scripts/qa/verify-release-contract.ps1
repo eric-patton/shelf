@@ -31,7 +31,7 @@ Assert-Contains ".github/workflows/ci.yml" "npm audit --audit-level=high" "CI mu
 Assert-Contains ".github/workflows/ci.yml" "cargo-audit.*0\.22\.2" "CI must install the pinned Cargo audit tool"
 
 # feat-004/AC-4
-if ($package.version -ne "0.3.0" -or $tauri.version -ne "0.3.0" -or $cargo -notmatch '(?m)^version = "0\.3\.0"$') {
+if ($package.version -ne "0.3.0" -or $tauri.version -ne "0.3.0" -or $cargo -notmatch '(?m)^version = "0\.3\.0"\r?$') {
     throw "Package, Tauri, and Cargo versions must all be 0.3.0."
 }
 Assert-Contains ".github/workflows/build.yml" "bundles msi,nsis" "Release must build MSI and NSIS"
@@ -68,7 +68,7 @@ if (
     $tauri.productName -ne "Shelf for Windows" -or
     $tauri.identifier -ne "com.ericpatton.shelf.windows" -or
     $tauri.bundle.windows.wix.upgradeCode -ne "7ef88bb7-6239-432c-a7f3-91ec0d158583" -or
-    $cargo -notmatch '(?m)^name = "shelf-for-windows"$'
+    $cargo -notmatch '(?m)^name = "shelf-for-windows"\r?$'
 ) {
     throw "Package, application, and installer identities must belong to Shelf for Windows."
 }
@@ -81,8 +81,8 @@ Assert-Contains "NOTICE" "github\.com/Harukaon/shelf" "Upstream attribution must
 # feat-004/AC-11
 Assert-Contains ".github/workflows/build.yml" "environment: production-release" "Publication must use a protected environment"
 Assert-Contains ".github/workflows/build.yml" "needs: \[windows\]" "Publication must wait for signed Windows artifacts"
-Assert-Contains ".github/workflows/build.yml" "actions/download-artifact@v4" "Publication must download reviewed artifacts"
-if ($workflow -match '(?m)^\s+macos:\s*$' -or $workflow -match '\.dmg') {
+Assert-Contains ".github/workflows/build.yml" "actions/download-artifact@v8" "Publication must download reviewed artifacts"
+if ($workflow -match '(?m)^\s+macos:\s*\r?$' -or $workflow -match '\.dmg') {
     throw "The Windows-focused release workflow must not publish macOS assets."
 }
 $publishBlock = [regex]::Match($workflow, '(?ms)^  publish:\r?\n.*\z').Value

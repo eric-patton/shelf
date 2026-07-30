@@ -780,7 +780,7 @@ mod tests {
     fn dangerous_commands_require_explicit_approval() {
         // feat-003/AC-4
         let dangerous = RunShellCommandArgs {
-            command: "Remove-Item -Recurse -Force dist".to_string(),
+            command: "powershell -Command \"Remove-Item -Recurse -Force dist\"".to_string(),
             ..RunShellCommandArgs::default()
         };
         assert!(shell_command_requires_approval(&dangerous, false));

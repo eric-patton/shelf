@@ -27,13 +27,17 @@ if (-not $version) {
     throw "Microsoft Edge WebView2 Runtime was not found."
 }
 
+Write-Output "Microsoft Edge WebView2 Runtime: $version"
+
 $resolvedOutput = [System.IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Path $resolvedOutput -Force | Out-Null
 $driverPath = Join-Path $resolvedOutput "msedgedriver.exe"
 if (Test-Path -LiteralPath $driverPath) {
-    $installedVersion = (& $driverPath --version) -replace '^MSEdgeDriver\s+', ''
-    if ($installedVersion -like "$version*") {
-        Write-Output $driverPath
+    $driverVersionOutput = & $driverPath --version
+    $installedVersion = $driverVersionOutput -replace '^.*?(\d+\.\d+\.\d+\.\d+).*$', '$1'
+    if ($installedVersion -eq $version) {
+        Write-Output "Microsoft Edge WebDriver: $installedVersion"
+        Write-Output "Microsoft Edge WebDriver path: $driverPath"
         exit 0
     }
 }
@@ -48,4 +52,7 @@ if (-not (Test-Path -LiteralPath $driverPath)) {
     throw "Edge WebDriver download did not contain msedgedriver.exe."
 }
 
-Write-Output $driverPath
+$driverVersionOutput = & $driverPath --version
+$installedVersion = $driverVersionOutput -replace '^.*?(\d+\.\d+\.\d+\.\d+).*$', '$1'
+Write-Output "Microsoft Edge WebDriver: $installedVersion"
+Write-Output "Microsoft Edge WebDriver path: $driverPath"

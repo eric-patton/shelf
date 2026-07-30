@@ -50,3 +50,14 @@
   confirmed the Shelf for Windows home, quit dialog, and complete process-tree exit. Local MSI
   SHA-256 is `a9d4b035d088df47b2dcdb642d50de53ec4b6ed6890aa710a33be40bb7565bf4`;
   local NSIS SHA-256 is `2f142e0b0d347c831ddb5910f70435c5952cbaa801e305f3b3fbe2272f3db476`.
+- [x] T16 Make the dangerous shell approval proof portable across Windows and macOS by using an
+  explicitly invoked PowerShell command. File: `src-tauri/src/commands/ai/shell.rs`. Trace:
+  `feat-003/AC-4`, `feat-004/AC-1`.
+- [x] T17 Isolate the hosted Windows desktop smoke in an explicit writable WebView2 user-data
+  folder, report the matched runtime and driver versions, clean the owned folder, and move
+  first-party GitHub actions to their Node 24 releases. Files: `e2e/windows-smoke.e2e.mjs`,
+  `scripts/qa/ensure-msedgedriver.ps1`, `.github/workflows/ci.yml`,
+  `.github/workflows/build.yml`. Trace: `feat-004/AC-1`, `feat-004/AC-2`.
+- [x] T18 Make the release version contract accept both LF and CRLF Cargo files so the same proof
+  works in Windows and macOS checkouts. File: `scripts/qa/verify-release-contract.ps1`. Trace:
+  `feat-004/AC-1`, `feat-004/AC-4`.

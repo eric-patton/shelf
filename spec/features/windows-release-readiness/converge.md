@@ -62,3 +62,35 @@ No public unsigned fallback, upstream-owned update source, implicit upstream end
 authority in the publication job, or unrequested release artifact was found.
 
 verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)
+
+## run 3 - 2026-07-30
+
+baseline: spec sha256:39bd08eb13f9, plan sha256:8611f13f4ffa, tasks sha256:79291351228b
+
+implemented:
+
+- AC-1: `.github/workflows/ci.yml:17` retains the Windows and macOS quality matrix, and the portable
+  destructive-command proof at `src-tauri/src/commands/ai/shell.rs:782` no longer assumes a Windows
+  host.
+- AC-2: `e2e/windows-smoke.e2e.mjs:142` gives each real Tauri WebDriver run a unique writable
+  WebView2 user-data folder, while lines 151-181 retain the home, shell, terminal, and PowerShell
+  output proof and lines 186-193 retain process and profile cleanup.
+- AC-3: `.github/workflows/ci.yml` retains independent npm and Cargo audit jobs.
+- AC-4: `scripts/qa/verify-release-contract.ps1:34` and line 71 prove the synchronized version and
+  identity with either LF or CRLF checkout line endings.
+- AC-5: `.github/workflows/build.yml:11-14` still confines Azure OIDC to the protected signing job.
+- AC-6: `.github/workflows/build.yml:98-106` still separates signed artifact upload from protected
+  public publication.
+- AC-7: `README.md:49-66`, `docs/windows.md:3-28`, and `docs/releasing-windows.md:71-96` retain the
+  supported-system, verification, and release-matrix guidance.
+- AC-8 and AC-9 remain unresolved human signoffs in `feature.md` and `[H]` tasks in `tasks.md`.
+  They are release gates, not implementation drift.
+- AC-10: `src-tauri/tauri.conf.json:2-26`, `src-tauri/src/commands/update.rs:4`, `LICENSE`, and
+  `NOTICE` retain the fork-owned application, installer, updater, license, and attribution identity.
+- AC-11: `.github/workflows/build.yml:11-14` and lines 98-106 retain distinct least-privilege signing
+  and publication environments.
+
+No unrequested public asset, unsigned fallback, credential path, platform behavior, or product
+scope was found in the repaired CI surface.
+
+verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)
