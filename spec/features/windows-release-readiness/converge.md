@@ -94,3 +94,22 @@ No unrequested public asset, unsigned fallback, credential path, platform behavi
 scope was found in the repaired CI surface.
 
 verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)
+
+## run 4 - 2026-07-30
+
+baseline: spec sha256:39bd08eb13f9, plan sha256:8611f13f4ffa, tasks sha256:98016aed6c0b
+
+implemented:
+
+- AC-1: `.github/workflows/ci.yml:119-126` prepares the hosted Windows WebView2 and EdgeDriver pair
+  before running the existing independent desktop job.
+- AC-2: `scripts/qa/update-webview2-runtime.ps1:1-27` installs Microsoft's current Evergreen
+  runtime, `scripts/qa/ensure-msedgedriver.ps1` resolves the exact matching driver, and
+  `e2e/windows-smoke.e2e.mjs:184-202` reports bounded startup evidence if the W3C session fails.
+- AC-3 through AC-7 and AC-10 through AC-11 retain the implementations recorded in run 3.
+- AC-8 and AC-9 remain unresolved human release signoffs, not implementation drift.
+
+The hosted-runner runtime preparation and diagnostics do not add a public fallback, external
+dependency graph, signing permission, user-visible behavior, or unrequested release artifact.
+
+verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)

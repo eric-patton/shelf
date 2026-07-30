@@ -25,6 +25,7 @@ Assert-Contains ".github/workflows/ci.yml" "windows-latest" "CI must run on Wind
 Assert-Contains ".github/workflows/ci.yml" "macos-latest" "CI must run on macOS"
 Assert-Contains ".github/workflows/ci.yml" "cargo clippy.*-D warnings" "CI must deny Clippy warnings"
 Assert-Contains ".github/workflows/ci.yml" "tauri build -- --debug --no-bundle" "CI must build debug Tauri"
+Assert-Contains ".github/workflows/ci.yml" "update-webview2-runtime\.ps1" "Desktop CI must update WebView2 before matching Edge WebDriver"
 
 # feat-004/AC-3
 Assert-Contains ".github/workflows/ci.yml" "npm audit --audit-level=high" "CI must audit npm"

@@ -117,6 +117,10 @@ jobs:
       - name: Install tauri-driver
         run: cargo install tauri-driver --version 2.0.6 --locked
 
+      - name: Update Microsoft Edge WebView2 Runtime
+        shell: pwsh
+        run: ./scripts/qa/update-webview2-runtime.ps1
+
       - name: Install matching Edge WebDriver
         shell: pwsh
         run: ./scripts/qa/ensure-msedgedriver.ps1

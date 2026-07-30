@@ -61,3 +61,8 @@
 - [x] T18 Make the release version contract accept both LF and CRLF Cargo files so the same proof
   works in Windows and macOS checkouts. File: `scripts/qa/verify-release-contract.ps1`. Trace:
   `feat-004/AC-1`, `feat-004/AC-4`.
+- [x] T19 Update the hosted Windows runner to Microsoft's latest Evergreen WebView2 Runtime before
+  installing the exactly matching Edge WebDriver, and report bounded host-process and profile
+  diagnostics if session startup fails. Files: `scripts/qa/update-webview2-runtime.ps1`,
+  `.github/workflows/ci.yml`, `e2e/windows-smoke.e2e.mjs`,
+  `scripts/qa/verify-release-contract.ps1`. Trace: `feat-004/AC-1`, `feat-004/AC-2`.

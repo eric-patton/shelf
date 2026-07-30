@@ -1,4 +1,4 @@
-import { access, mkdtemp, rm } from "node:fs/promises";
+import { access, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -181,7 +181,25 @@ try {
 
   process.stdout.write("Windows Tauri desktop smoke passed.\n");
 } catch (error) {
-  process.stderr.write(`${error.stack || error}\n${driverOutput}\n`);
+  const profileEntries = await readdir(webviewUserDataFolder).catch(
+    (readError) => [`unavailable: ${readError.message}`],
+  );
+  const appProcesses =
+    process.platform === "win32"
+      ? spawnSync(
+          "tasklist.exe",
+          ["/FI", "IMAGENAME eq shelf-for-windows.exe"],
+          {
+            encoding: "utf8",
+            windowsHide: true,
+          },
+        ).stdout.trim()
+      : "not collected";
+  process.stderr.write(
+    `${error.stack || error}\n${driverOutput}\n` +
+      `WebView2 profile entries: ${JSON.stringify(profileEntries)}\n` +
+      `Shelf process state:\n${appProcesses}\n`,
+  );
   process.exitCode = 1;
 } finally {
   if (sessionId) {
