@@ -423,6 +423,10 @@ export function _renderTabs(app: any) {
     const isTabActive = tab.id === app.tabs.activeId;
     tabEl.className = `tab-item${isTabActive ? " active" : ""}${tab.closable ? " closable" : ""}`;
     tabEl.dataset.tabId = tab.id;
+    tabEl.tabIndex = 0;
+    tabEl.setAttribute("role", "tab");
+    tabEl.setAttribute("aria-selected", String(isTabActive));
+    tabEl.setAttribute("aria-label", tab.title);
     const closeHtml = tab.closable ? `<span class="tab-close" title="${t("tab.close")}"><i data-lucide="x"></i></span>` : "";
     tabEl.innerHTML = `
       <span class="tab-drag-handle">
@@ -445,6 +449,43 @@ export function _renderTabs(app: any) {
     }
     tabEl.addEventListener("click", () => {
       if (app._tabSortInProgress) return;
+      app.tabs.activateTab(tab.id);
+    });
+    if (tab.closable) {
+      const openTabMenu = (x: number, y: number) => {
+        showContextMenu(
+          [{ label: t("context.rename"), action: () => app._renameTabPrompt(tab) }],
+          x,
+          y,
+        );
+      };
+      tabEl.addEventListener("dblclick", (e) => {
+        if ((e.target as Element).closest(".tab-close")) return;
+        e.preventDefault();
+        e.stopPropagation();
+        app._renameTabPrompt(tab);
+      });
+      tabEl.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openTabMenu(e.clientX, e.clientY);
+      });
+      tabEl.addEventListener("keydown", (e) => {
+        if (e.key === "F2") {
+          e.preventDefault();
+          app._renameTabPrompt(tab);
+          return;
+        }
+        if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+          e.preventDefault();
+          const rect = tabEl.getBoundingClientRect();
+          openTabMenu(rect.left + 12, rect.bottom);
+        }
+      });
+    }
+    tabEl.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
       app.tabs.activateTab(tab.id);
     });
     tabEl.addEventListener("auxclick", (e) => {

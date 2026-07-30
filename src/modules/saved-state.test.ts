@@ -47,4 +47,15 @@ describe("saved tab recovery", () => {
     const invalid = { id: "invalid", kind: "session", title: "Broken" } as const;
     expect(validSavedTabStates([valid, invalid, valid])).toEqual([valid]);
   });
+
+  it("round trips an optional custom title without requiring it from older state [feat-002/AC-9]", () => {
+    const renamed = tab({ id: "renamed", title: "Build logs", customTitle: "Build logs" });
+    const legacy = tab({ id: "legacy", title: "Terminal" });
+    const map = new Map([[renamed.id, renamed], [legacy.id, legacy]]);
+
+    expect(savedTabsFromRuntime([renamed.id, legacy.id], map, "start")).toEqual([
+      expect.objectContaining({ id: "renamed", customTitle: "Build logs" }),
+      expect.not.objectContaining({ customTitle: expect.anything() }),
+    ]);
+  });
 });

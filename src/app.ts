@@ -22,12 +22,14 @@ import { APP_THEMES, SESSION_POLL_INTERVAL_MS, START_TAB_ID, THEME_STORAGE_KEY, 
 import * as settingsPanel from "./modules/settings-panel";
 import * as aiWindow from "./modules/ai-window";
 import * as sessionActions from "./modules/session-actions";
+import * as tabActions from "./modules/tab-actions";
 import * as workspaceView from "./modules/workspace-view";
 import * as appState from "./modules/app-state";
 import type { AiToolMessage } from "./modules/ai-window";
 import type { SavedAppState, SavedTabState, SavedWindowState } from "./modules/app-state";
 import { selectShell, type TerminalDetection } from "./modules/shell-selection";
 import { pathsEqual } from "./modules/platform-paths";
+import { shouldApplyAutomaticTabTitle } from "./modules/tab-title";
 
 type PendingSessionTab = {
   workspacePath: string;
@@ -562,7 +564,7 @@ class App {
       const session = byId.get(tab.sessionId);
       if (!session) continue;
       const title = this._displayTitleForSession(session);
-      if (tab.title !== title) {
+      if (shouldApplyAutomaticTabTitle(tab) && tab.title !== title) {
         tab.title = title;
       }
     }
@@ -691,6 +693,8 @@ class App {
   private _onTabAdd() { return sessionActions._onTabAdd(this); }
 
   private async _renameSessionPrompt(session: Session) { return sessionActions._renameSessionPrompt(this, session); }
+
+  private _renameTabPrompt(tab: TabInfo) { return tabActions._renameTabPrompt(this, tab); }
 
   private async _deleteSession(session: Session, wsPath: string) { return sessionActions._deleteSession(this, session, wsPath); }
 

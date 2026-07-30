@@ -47,6 +47,12 @@ across local Windows paths and remote Unix paths.
   - Given Shelf saved blank terminal, local session, new-agent, and SSH tabs
   - When Shelf starts again
   - Then it restores each valid tab and keeps invalid records from blocking the rest
+- **Scenario: Rename a tab**
+  - Given a closable blank-terminal, local-session, new-agent, or SSH tab
+  - When the user opens Rename from its context menu or double-clicks the tab and saves a nonempty name
+  - Then Shelf immediately shows the trimmed custom title
+  - And Shelf restores that title after restart
+  - And provider or pending-session refresh does not overwrite it
 
 ## Acceptance criteria
 
@@ -67,6 +73,9 @@ across local Windows paths and remote Unix paths.
   and SSH tab records and skips an invalid record without aborting recovery.
 - [ ] AC-8: Pin, rename, provider-owned delete or archive, refresh, and pending-session linking continue
   to operate on the intended Windows workspace.
+- [ ] AC-9: Every closable tab can be renamed from an accessible dialog opened by its context menu or
+  by double-click. A trimmed nonempty custom title is persisted across restart and takes precedence
+  over automatic session-title updates. The Home tab remains immutable.
 
 ## Known sharp edges
 
@@ -80,6 +89,9 @@ across local Windows paths and remote Unix paths.
 - An SSH failure affects only the requested remote tab.
 - An unavailable provider CLI produces the existing terminal error and leaves other providers usable.
 - Invalid saved tabs are skipped and logged without deleting valid saved state.
+- A blank or whitespace-only custom tab title is not saved.
+- Canceling a tab rename leaves the current title unchanged.
+- Existing saved state without a custom tab title restores with its existing generated title.
 
 ## Non-functional requirements
 

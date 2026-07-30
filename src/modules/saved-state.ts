@@ -1,5 +1,6 @@
 import type { TabInfo } from "../types";
 import type { SavedTabState } from "./app-state";
+import { normalizeCustomTabTitle } from "./tab-title";
 
 export function savedTabsFromRuntime(
   tabOrder: string[],
@@ -12,6 +13,7 @@ export function savedTabsFromRuntime(
     if (!tab || !tab.closable || tabId === startTabId) continue;
 
     const kind = tab.sessionId ? "session" : tab.restoreKind || "terminal";
+    const customTitle = normalizeCustomTabTitle(tab.customTitle);
     const saved: SavedTabState = {
       id: tab.id,
       kind,
@@ -22,6 +24,7 @@ export function savedTabsFromRuntime(
       sessionId: tab.sessionId,
       shell: tab.shell,
       ssh: tab.ssh,
+      ...(customTitle ? { customTitle } : {}),
     };
     if (isValidSavedTabState(saved)) tabs.push(saved);
   }

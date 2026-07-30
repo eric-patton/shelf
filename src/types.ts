@@ -48,6 +48,7 @@ export interface TabInfo {
   ssh?: SshTarget;
   restoreKind?: "terminal" | "session" | "new-session";
   title: string;
+  customTitle?: string;
   closable: boolean;
   terminal: import("@xterm/xterm").Terminal;
   fitAddon: import("@xterm/addon-fit").FitAddon;

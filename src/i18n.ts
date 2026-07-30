@@ -17,6 +17,9 @@ const dict: Record<string, Record<string, string>> = {
 
     "tab.home": "Home",
     "tab.terminal": "Terminal",
+    "tab.rename": "Rename tab",
+    "tab.rename_label": "Tab name",
+    "tab.rename_required": "Enter a tab name.",
     "tab.claude_new": "Claude (new)",
     "tab.codex_new": "Codex (new)",
     "tab.pi_new": "pi (new)",
@@ -211,6 +214,9 @@ const dict: Record<string, Record<string, string>> = {
 
     "tab.home": "首页",
     "tab.terminal": "终端",
+    "tab.rename": "重命名标签页",
+    "tab.rename_label": "标签页名称",
+    "tab.rename_required": "请输入标签页名称。",
     "tab.claude_new": "Claude (新建)",
     "tab.codex_new": "Codex (新建)",
     "tab.pi_new": "pi (新建)",

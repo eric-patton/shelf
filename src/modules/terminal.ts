@@ -3,6 +3,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { spawn, IPty, IPtyForkOptions } from "./pty";
 import { TabInfo, SshTarget, type SessionProvider } from "../types";
 import { t } from "../i18n";
+import { terminalContrastOptions } from "./terminal-theme";
 
 type TerminalTabOptions = {
   sessionId?: string;
@@ -569,6 +570,7 @@ export function createTerminalTab(
     ...fontOptions,
     drawBoldTextInBrightColors: false,
     theme: TERMINAL_THEMES[terminalThemeMode],
+    ...terminalContrastOptions(),
   });
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);

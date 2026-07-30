@@ -8,6 +8,7 @@ import { buildSshArgs } from "./ssh";
 import { buildLocalCliCommand, buildRemoteCliCommand } from "./cli-launch";
 import type { SessionProvider, SshTarget, TabInfo } from "../types";
 import { savedTabsFromRuntime, validSavedTabStates } from "./saved-state";
+import { restoreCustomTabTitle } from "./tab-title";
 
 export type SavedWindowState = {
   x: number;
@@ -21,6 +22,7 @@ export type SavedTabState = {
   id: string;
   kind: "terminal" | "session" | "new-session";
   title: string;
+  customTitle?: string;
   cwd?: string;
   workspacePath?: string;
   sessionProvider?: SessionProvider;
@@ -201,14 +203,14 @@ export function _createRestoredTab(app: any, saved: SavedTabState): TabInfo | nu
         { sessionId: session.id, sessionProvider: session.provider, cwd, workspacePath: saved.workspacePath, command: { bin: "ssh", args: sshArgs }, ssh: saved.ssh, ...unreadOptions },
       );
       app._beginRestoredTabUnreadSuppression(tab.id);
-      return tab;
+      return restoreCustomTabTitle(tab, saved.customTitle);
     }
     const tab = createTerminalTab(saved.id, app._displayTitleForSession(session) || saved.title, app.terminalContainer,
       (id, data) => app._writePty(id, data),
       { sessionId: session.id, sessionProvider: session.provider, cwd, workspacePath: saved.workspacePath, command, ...unreadOptions },
     );
     app._beginRestoredTabUnreadSuppression(tab.id);
-    return tab;
+    return restoreCustomTabTitle(tab, saved.customTitle);
   }
 
   if (saved.kind === "new-session") {
@@ -224,7 +226,7 @@ export function _createRestoredTab(app: any, saved: SavedTabState): TabInfo | nu
         { cwd: saved.workspacePath, workspacePath: saved.workspacePath, sessionProvider: saved.sessionProvider, command: { bin: "ssh", args: sshArgs }, ssh: saved.ssh, ...unreadOptions },
       );
       app._beginRestoredTabUnreadSuppression(tab.id);
-      return tab;
+      return restoreCustomTabTitle(tab, saved.customTitle);
     }
     const bin = app._cliPathForProvider(saved.sessionProvider);
     const command = buildLocalCliCommand(saved.sessionProvider, bin, extraArgs, saved.workspacePath);
@@ -241,7 +243,7 @@ export function _createRestoredTab(app: any, saved: SavedTabState): TabInfo | nu
       startedAt: Date.now(),
     });
     app._schedulePendingSessionPoll(saved.id);
-    return tab;
+    return restoreCustomTabTitle(tab, saved.customTitle);
   }
 
   // SSH plain shell tab
@@ -252,7 +254,7 @@ export function _createRestoredTab(app: any, saved: SavedTabState): TabInfo | nu
       { cwd: saved.cwd, workspacePath: saved.workspacePath, sessionProvider: saved.sessionProvider, shell: "ssh", command: { bin: "ssh", args: sshArgs }, ssh: saved.ssh, ...unreadOptions },
     );
     app._beginRestoredTabUnreadSuppression(tab.id);
-    return tab;
+    return restoreCustomTabTitle(tab, saved.customTitle);
   }
 
   const tab = createTerminalTab(saved.id, saved.title || t("tab.terminal"), app.terminalContainer,
@@ -266,5 +268,5 @@ export function _createRestoredTab(app: any, saved: SavedTabState): TabInfo | nu
     },
   );
   app._beginRestoredTabUnreadSuppression(tab.id);
-  return tab;
+  return restoreCustomTabTitle(tab, saved.customTitle);
 }

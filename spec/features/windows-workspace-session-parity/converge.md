@@ -23,3 +23,30 @@ implemented:
 No unrequested user-visible behavior was found in the workspace and session feature surface.
 
 verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)
+
+## run 2 - 2026-07-30
+
+baseline: spec sha256:0679c3a0c3a7, plan sha256:1d321b54cb62, tasks sha256:27a9e5f2aa8a
+
+implemented:
+
+- AC-1: `src/modules/platform-paths.test.ts:11` and `src-tauri/src/platform_paths.rs:114`
+- AC-2: `src/modules/cli-launch.test.ts:6`
+- AC-3: `src/modules/platform-paths.test.ts:25`
+- AC-4: `src/modules/platform-paths.test.ts:32`
+- AC-5: `src-tauri/src/commands/files.rs:154` and `src-tauri/src/commands/files.rs:169`
+- AC-6: `src/modules/cli-launch.test.ts:22`
+- AC-7: `src/modules/saved-state.test.ts:14`
+- AC-8: `src/modules/pending-session.test.ts:15` and
+  `src-tauri/src/commands/sessions.rs:1108`
+- AC-9: `src/modules/tab-title.test.ts:9`, `src/modules/saved-state.test.ts:51`,
+  `src/modules/tab-actions.ts:6`, `src/modules/workspace-view.ts:455`, and observed installed-app
+  restart recovery of a renamed PowerShell tab
+- Design-system terminal contrast reference: `src/modules/terminal-theme.test.ts:4`,
+  `src/modules/terminal-theme.ts:5`, and observed readable Codex input text in the installed app's
+  light theme
+
+No unrequested user-visible behavior, shared-constraint violation, or open drift was found in the
+workspace, session, terminal-theme, or tab-title feature surface.
+
+verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)

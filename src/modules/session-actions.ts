@@ -15,6 +15,7 @@ import {
   type PathInsertionDestination,
 } from "./platform-paths";
 import { findPendingSession } from "./pending-session";
+import { shouldApplyAutomaticTabTitle } from "./tab-title";
 import {
   PENDING_SESSION_DISCOVERY_TIMEOUT_MS,
   PENDING_SESSION_POLL_INTERVAL_MS,
@@ -228,7 +229,11 @@ export async function _pollPendingSessionTab(app: any, tabId: string) {
     }
   } else {
     const session = sessions.find((item: Session) => item.id === pending.linkedSessionId);
-    if (session && tab.title !== app._displayTitleForSession(session)) {
+    if (
+      session
+      && shouldApplyAutomaticTabTitle(tab)
+      && tab.title !== app._displayTitleForSession(session)
+    ) {
       tab.title = app._displayTitleForSession(session);
       pending.stableUntil = Date.now() + PENDING_SESSION_STABILIZE_MS;
       app._renderTabs();
@@ -267,7 +272,9 @@ export function _linkPendingSessionTab(app: any, tabId: string, pending: Pending
   pending.linkedSessionId = session.id;
   pending.stableUntil = Date.now() + PENDING_SESSION_STABILIZE_MS;
   tab.sessionId = session.id;
-  tab.title = app._displayTitleForSession(session);
+  if (shouldApplyAutomaticTabTitle(tab)) {
+    tab.title = app._displayTitleForSession(session);
+  }
   app.activeSessionIds.add(session.id);
   if (app.tabs.activeId === tabId) app.focusedSessionId = session.id;
   app.selectedWorkspace = pending.workspacePath;

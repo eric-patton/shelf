@@ -11,6 +11,12 @@
 - Test provider and SSH argv through existing exported command builders without credentials.
 - Exercise state restoration through exported saved-state helpers and Windows desktop E2E in the
   release-readiness feature.
+- Preserve readable terminal content in light application themes by requiring xterm's standard
+  minimum contrast adjustment for terminal cells.
+- Store a custom tab title as an optional backward-compatible saved-state field. Keep automatic
+  provider and pending-session titles as the default only while no custom title exists.
+- Reuse the existing dialog and context-menu components for Rename, with double-click as a convenient
+  second entry point. The Home tab remains outside the closable-tab action surface.
 
 ## Verification approach
 
@@ -24,6 +30,10 @@
   completing the process boundary.
 - `feat-002/AC-8` enters through workspace matching, pending-session selection, and existing session
   command tests.
+- The terminal contrast regression enters through the exported terminal options used to construct
+  xterm and is completed by Windows desktop observation in a light theme.
+- `feat-002/AC-9` enters through tab-title normalization and saved-state round trips, with Windows
+  desktop E2E covering both rename entry points and restart recovery.
 
 ## Commands
 
