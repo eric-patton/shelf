@@ -50,3 +50,32 @@ No unrequested user-visible behavior, shared-constraint violation, or open drift
 workspace, session, terminal-theme, or tab-title feature surface.
 
 verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)
+
+## run 3 - 2026-07-30
+
+baseline: spec sha256:7d401b47990b, plan sha256:a0f481ad3037, tasks sha256:0471e82916b3
+
+implemented:
+
+- AC-1 through AC-9 retain the implementations and installed-app proof recorded in runs 1 and 2.
+- AC-10: `src/modules/terminal-theme.test.ts:5`, `src/modules/terminal-theme.ts:19`, and
+  `src/modules/terminal.ts:450`; installed-app observation confirmed near-white Codex composer text
+  under Shelf's light theme.
+- AC-11 automated boundary: `src/modules/terminal-input.test.ts:25`,
+  `src/modules/terminal-input.ts:15`, `src/modules/terminal.ts:652`, and
+  `src-tauri/src/lib.rs:149`. Shelf disables WebView2 browser accelerator handling in production,
+  distinguishes Codex from standard terminal input, and emits a protected bracketed-paste newline
+  with its caret before the trailing-space guard.
+
+partial:
+
+- opened gap-001 [partial]: AC-11 awaits physical confirmation in the freshly signed installed
+  pilot.
+- AC-11 still needs physical confirmation in the freshly signed installed pilot that Codex 0.146.0
+  keeps the protected final line after its redraw. User observation already confirmed that the
+  previous unprotected newline appeared briefly before Codex discarded it.
+
+No contradictory or unrequested behavior was found in the touched terminal input, terminal theme,
+WebView2 settings, or isolated E2E state surfaces.
+
+verdict: open 1 (missing 0, partial 1, contradicts 0, unrequested 0)

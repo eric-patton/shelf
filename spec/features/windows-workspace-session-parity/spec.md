@@ -53,6 +53,18 @@ across local Windows paths and remote Unix paths.
   - Then Shelf immediately shows the trimmed custom title
   - And Shelf restores that title after restart
   - And provider or pending-session refresh does not overwrite it
+- **Scenario: Dark TUI surface in a light theme**
+  - Given Shelf uses a light application theme
+  - And a terminal application paints a dark input surface
+  - When text is rendered on that surface
+  - Then Shelf requests near-white foreground adjustment for low-contrast cells
+  - And the text remains clearly legible without changing the surrounding light terminal background
+- **Scenario: Codex multiline input on Windows**
+  - Given Codex is running in a Shelf terminal on Windows
+  - When the user presses exact `Ctrl+J`
+  - Then Shelf inserts one persistent newline in the Codex composer
+  - And the caret remains on the new line ready for more text
+  - And Shelf does not submit the draft
 
 ## Acceptance criteria
 
@@ -76,6 +88,11 @@ across local Windows paths and remote Unix paths.
 - [ ] AC-9: Every closable tab can be renamed from an accessible dialog opened by its context menu or
   by double-click. A trimmed nonempty custom title is persisted across restart and takes precedence
   over automatic session-title updates. The Home tab remains immutable.
+- [ ] AC-10: In light application themes, terminal cells with a dark background target at least 15:1
+  foreground contrast. When the target is mathematically unavailable, xterm uses the brightest
+  available adjusted foreground. Dark application themes retain the standard 4.5:1 minimum.
+- [ ] AC-11: Exact `Ctrl+J` in a Windows Codex tab inserts one persistent composer newline without
+  submitting the draft. Standard terminal tabs continue to receive the LF control byte.
 
 ## Known sharp edges
 
@@ -92,6 +109,8 @@ across local Windows paths and remote Unix paths.
 - A blank or whitespace-only custom tab title is not saved.
 - Canceling a tab rename leaves the current title unchanged.
 - Existing saved state without a custom tab title restores with its existing generated title.
+- Other `J` modifier combinations and key-release events remain under the terminal application's
+  normal input handling.
 
 ## Non-functional requirements
 

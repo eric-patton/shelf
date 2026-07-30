@@ -7,6 +7,33 @@ mod process_tree;
 mod pty_plugin;
 mod session;
 
+#[cfg(all(target_os = "windows", not(feature = "e2e")))]
+fn windows_browser_accelerator_keys_enabled() -> bool {
+    false
+}
+
+#[cfg(all(target_os = "windows", not(feature = "e2e")))]
+fn configure_windows_webview(window: &tauri::WebviewWindow) -> tauri::Result<()> {
+    use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Settings3;
+    use windows_core::Interface;
+
+    let enabled = windows_browser_accelerator_keys_enabled();
+    window.with_webview(move |webview| {
+        let result: windows_core::Result<()> = (|| unsafe {
+            let core_webview = webview.controller().CoreWebView2()?;
+            let settings = core_webview.Settings()?;
+            let settings3: ICoreWebView2Settings3 = settings.cast()?;
+            settings3.SetAreBrowserAcceleratorKeysEnabled(enabled)
+        })();
+
+        if let Err(error) = result {
+            log::warn!("could not configure WebView2 browser accelerator keys: {error}");
+        }
+    })?;
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default()
@@ -46,6 +73,8 @@ pub fn run() {
             {
                 window.set_theme(Some(tauri::Theme::Dark)).ok();
                 window.set_decorations(false).ok();
+                #[cfg(not(feature = "e2e"))]
+                configure_windows_webview(&window)?;
             }
             #[cfg(target_os = "macos")]
             let _ = window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
@@ -112,4 +141,12 @@ pub fn run() {
             }
         }
     });
+}
+
+#[cfg(all(test, target_os = "windows", not(feature = "e2e")))]
+mod tests {
+    #[test]
+    fn feat_002_ctrl_j_disables_browser_accelerator_keys() {
+        assert!(!super::windows_browser_accelerator_keys_enabled());
+    }
 }

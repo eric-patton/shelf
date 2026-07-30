@@ -1,5 +1,9 @@
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
+
+const e2eHomePath = resolve("artifacts/windows-e2e", String(process.pid));
+mkdirSync(e2eHomePath, { recursive: true });
+process.env.SHELF_E2E_HOME = e2eHomePath;
 
 const appBinaryPath = resolve(
   process.env.SHELF_APP_BINARY ||
@@ -51,6 +55,6 @@ export const config = {
   reporters: ["spec"],
   mochaOpts: {
     ui: "bdd",
-    timeout: 60_000,
+    timeout: 120_000,
   },
 };

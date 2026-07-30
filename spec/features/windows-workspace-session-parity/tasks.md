@@ -46,3 +46,31 @@
 - [x] T13 Fold the approved delta into the canonical feature spec, validate the feature, and run the
   convergence audit. Observed: the canonical spec now includes AC-9, feature validation completed
   with zero errors and zero warnings, and convergence found no open drift.
+- [x] T14 Add failing mode-aware contrast tests for `feat-002/AC-10` and an exact `Ctrl+J` LF
+  regression test traced to `spec/design-system.md` terminal behavior. Files:
+  `src/modules/terminal-theme.ts`, `src/modules/terminal-theme.test.ts`,
+  `src/modules/terminal-input.ts`, `src/modules/terminal-input.test.ts`. Observed: the new tests failed
+  against the old 4.5:1-only behavior and missing key translator, then passed with the specified
+  light and dark targets plus exact modifier boundaries.
+- [x] T15 Implement light-theme near-white contrast adjustment and explicit `Ctrl+J` forwarding at
+  the xterm key boundary. File: `src/modules/terminal.ts`. Observed: 23 Vitest tests and the production
+  TypeScript build passed. Windows desktop E2E sent a WebDriver `Ctrl+J` chord through xterm and the
+  PowerShell PTY received LF and executed the buffered test command. A physical `Ctrl+J` pilot then
+  exposed WebView2 browser accelerator interception before the page boundary.
+- [x] T16 Disable browser-only WebView2 accelerator keys on Windows with native regression coverage
+  so physical terminal shortcuts reach xterm. Retain them only for embedded WebDriver builds whose
+  input transport requires the browser setting. Translate Codex `Ctrl+J` to a protected
+  bracketed-paste newline with the caret before a trailing-space guard, while standard terminals
+  retain LF. User observation confirmed that an unprotected pasted newline rendered briefly and
+  was then discarded as an empty trailing line. Files: `src-tauri/src/lib.rs`,
+  `src-tauri/Cargo.toml`, `src/modules/terminal-input.ts`, `src/modules/terminal.ts`.
+- [~] T17 Run the full frontend, Rust, lint, build, and debug Tauri verification suite. Rebuild the
+  self-signed pilot, then verify Codex contrast and physical multiline input in the installed app.
+  Keep the embedded desktop E2E in a fresh Shelf-specific test home so it cannot restore or modify
+  the user's live Shelf tabs and settings. Observed: 24 Vitest tests and 37 Rust tests passed,
+  TypeScript and Vite built, formatting and Clippy passed with warnings denied, spec-flow validation
+  reported zero errors and zero warnings, and the fresh self-signed pilot passed its contract with
+  a valid signature. Physical confirmation of the protected Codex newline remains pending.
+- [x] T18 Fold the approved delta into the canonical feature spec, validate the feature, and run the
+  convergence audit. Observed: the canonical spec now includes AC-10 and AC-11, validation reported
+  zero errors and zero warnings, and convergence found no code-to-spec drift.

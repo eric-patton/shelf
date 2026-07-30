@@ -3,7 +3,13 @@ import { FitAddon } from "@xterm/addon-fit";
 import { spawn, IPty, IPtyForkOptions } from "./pty";
 import { TabInfo, SshTarget, type SessionProvider } from "../types";
 import { t } from "../i18n";
-import { terminalContrastOptions } from "./terminal-theme";
+import { terminalInputForKey } from "./terminal-input";
+import {
+  terminalContrastOptions,
+  type TerminalThemeMode,
+} from "./terminal-theme";
+
+export type { TerminalThemeMode } from "./terminal-theme";
 
 type TerminalTabOptions = {
   sessionId?: string;
@@ -297,8 +303,6 @@ export function repaintTerminal(tab: TabInfo) {
   });
 }
 
-export type TerminalThemeMode = "dark" | "light" | "github-light" | "solarized-light" | "dracula" | "monokai";
-
 const TERMINAL_THEMES = {
   dark: {
     background: "#282C34",
@@ -443,6 +447,7 @@ export function setTerminalThemeMode(mode: TerminalThemeMode) {
 export function applyTerminalTheme(terminal: Terminal | null | undefined, mode: TerminalThemeMode = terminalThemeMode) {
   if (!terminal) return;
   terminal.options.theme = TERMINAL_THEMES[mode];
+  terminal.options.minimumContrastRatio = terminalContrastOptions(mode).minimumContrastRatio;
   terminal.refresh(0, Math.max(0, terminal.rows - 1));
 }
 
@@ -570,7 +575,7 @@ export function createTerminalTab(
     ...fontOptions,
     drawBoldTextInBrightColors: false,
     theme: TERMINAL_THEMES[terminalThemeMode],
-    ...terminalContrastOptions(),
+    ...terminalContrastOptions(terminalThemeMode),
   });
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
@@ -643,6 +648,14 @@ export function createTerminalTab(
 
   const isMac = navigator.platform.toLowerCase().includes("mac");
   terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+    const inputMode = options?.sessionProvider === "codex" ? "codex" : "standard";
+    const translatedInput = terminalInputForKey(event, inputMode);
+    if (translatedInput !== null) {
+      onPtyWrite(tabId, translatedInput);
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
     const copyModifier = isMac ? event.metaKey : event.ctrlKey;
     if (
       event.type === "keydown" &&

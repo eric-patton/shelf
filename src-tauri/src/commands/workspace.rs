@@ -9,17 +9,20 @@ const CREATE_NO_WINDOW: u32 = 0x08000000;
 use std::os::windows::process::CommandExt;
 
 fn config_path() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".shelf")
-        .join("config.json")
+    shelf_home_dir().join(".shelf").join("config.json")
 }
 
 fn app_state_path() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".shelf")
-        .join("state.json")
+    shelf_home_dir().join(".shelf").join("state.json")
+}
+
+fn shelf_home_dir() -> PathBuf {
+    #[cfg(feature = "e2e")]
+    if let Some(path) = std::env::var_os("SHELF_E2E_HOME") {
+        return PathBuf::from(path);
+    }
+
+    dirs::home_dir().unwrap_or_else(|| PathBuf::from("."))
 }
 
 pub(crate) fn load_config() -> ShelfConfig {

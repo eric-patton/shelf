@@ -1,8 +1,22 @@
 import type { ITerminalOptions } from "@xterm/xterm";
 
-const MINIMUM_READABLE_CONTRAST_RATIO = 4.5;
+export type TerminalThemeMode =
+  | "dark"
+  | "light"
+  | "github-light"
+  | "solarized-light"
+  | "dracula"
+  | "monokai";
 
-export function terminalContrastOptions(): Pick<ITerminalOptions, "minimumContrastRatio"> {
-  return { minimumContrastRatio: MINIMUM_READABLE_CONTRAST_RATIO };
+const LIGHT_THEME_MODES = new Set<TerminalThemeMode>([
+  "light",
+  "github-light",
+  "solarized-light",
+]);
+
+export function terminalContrastOptions(
+  mode: TerminalThemeMode,
+): Pick<ITerminalOptions, "minimumContrastRatio"> {
+  return { minimumContrastRatio: LIGHT_THEME_MODES.has(mode) ? 15 : 4.5 };
 }
 
