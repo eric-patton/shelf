@@ -66,3 +66,7 @@
   diagnostics if session startup fails. Files: `scripts/qa/update-webview2-runtime.ps1`,
   `.github/workflows/ci.yml`, `e2e/windows-smoke.e2e.mjs`,
   `scripts/qa/verify-release-contract.ps1`. Trace: `feat-004/AC-1`, `feat-004/AC-2`.
+- [x] T20 Pin the blocking real desktop smoke to the supported `windows-2022` image after
+  `windows-latest` reproduced the same WebView2 automation-port failure as Tauri's official
+  WebDriver example. Keep the general Windows quality matrix on `windows-latest`. File:
+  `.github/workflows/ci.yml`. Trace: `feat-004/AC-1`, `feat-004/AC-2`.

@@ -22,6 +22,7 @@ $updateSource = Get-Content -LiteralPath "src-tauri/src/commands/update.rs" -Raw
 
 # feat-004/AC-1
 Assert-Contains ".github/workflows/ci.yml" "windows-latest" "CI must run on Windows"
+Assert-Contains ".github/workflows/ci.yml" "windows-2022" "Desktop CI must use the compatible Windows image"
 Assert-Contains ".github/workflows/ci.yml" "macos-latest" "CI must run on macOS"
 Assert-Contains ".github/workflows/ci.yml" "cargo clippy.*-D warnings" "CI must deny Clippy warnings"
 Assert-Contains ".github/workflows/ci.yml" "tauri build -- --debug --no-bundle" "CI must build debug Tauri"

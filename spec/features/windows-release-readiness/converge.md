@@ -113,3 +113,21 @@ The hosted-runner runtime preparation and diagnostics do not add a public fallba
 dependency graph, signing permission, user-visible behavior, or unrequested release artifact.
 
 verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)
+
+## run 5 - 2026-07-30
+
+baseline: spec sha256:39bd08eb13f9, plan sha256:8611f13f4ffa, tasks sha256:f0f4996e521f
+
+implemented:
+
+- AC-1: `.github/workflows/ci.yml:17` keeps general quality on `windows-latest` and macOS, while
+  line 92 pins only the blocking native desktop job to the compatible `windows-2022` image.
+- AC-2: `.github/workflows/ci.yml:90-130` still builds and drives the real Windows Tauri executable
+  through `tauri-driver` with a current matched WebView2 and EdgeDriver pair.
+- AC-3 through AC-7 and AC-10 through AC-11 retain the implementations recorded in runs 3 and 4.
+- AC-8 and AC-9 remain unresolved human release signoffs, not implementation drift.
+
+The runner-image compatibility pin preserves the specified blocking real-app proof and does not
+weaken, skip, or reclassify the desktop test.
+
+verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)
