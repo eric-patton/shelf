@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
-const REPO_OWNER: &str = "Harukaon";
+const REPO_OWNER: &str = "eric-patton";
 const REPO_NAME: &str = "shelf";
 const REQUEST_TIMEOUT_SECS: u64 = 10;
 
@@ -44,7 +44,7 @@ pub async fn check_for_update() -> Result<UpdateInfo, String> {
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
-        .user_agent(format!("shelf/{} (update-check)", current))
+        .user_agent(format!("shelf-for-windows/{} (update-check)", current))
         .build()
         .map_err(|e| format!("Build http client: {}", e))?;
 
@@ -121,5 +121,12 @@ mod tests {
         assert_eq!(compare_versions("v0.2.7", "v0.2.8"), Ordering::Less);
         assert_eq!(compare_versions("0.2.7", "0.2.7-beta"), Ordering::Equal);
         assert_eq!(compare_versions("0.2.7", "0.2.8-rc1"), Ordering::Less);
+    }
+
+    #[test]
+    fn fork_owns_update_source() {
+        // feat-004/AC-10
+        assert_eq!(REPO_OWNER, "eric-patton");
+        assert_eq!(REPO_NAME, "shelf");
     }
 }

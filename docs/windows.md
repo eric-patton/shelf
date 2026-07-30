@@ -1,6 +1,7 @@
-# Shelf on Windows
+# Shelf for Windows
 
-Shelf 0.3.0 targets Windows 10 22H2 and Windows 11 on x64 systems.
+Shelf for Windows 0.3.0 targets Windows 10 22H2 and Windows 11 on x64 systems. It is independently
+maintained at `eric-patton/shelf` and is derived from the MIT-licensed upstream Shelf project.
 
 ## Choose an installer
 
@@ -16,14 +17,15 @@ signature.
 In PowerShell, compare the downloaded file with the matching checksum entry:
 
 ```powershell
-Get-FileHash .\Shelf_0.3.0_x64-setup.exe -Algorithm SHA256
+$installer = Get-Item .\*0.3.0*x64-setup.exe
+Get-FileHash $installer -Algorithm SHA256
 Get-Content .\SHA256SUMS.windows.txt
 ```
 
 Then verify the Authenticode publisher and timestamp:
 
 ```powershell
-$signature = Get-AuthenticodeSignature .\Shelf_0.3.0_x64-setup.exe
+$signature = Get-AuthenticodeSignature $installer
 $signature.Status
 $signature.SignerCertificate.Subject
 $signature.TimeStamperCertificate.Subject
@@ -34,13 +36,14 @@ timestamp is not acceptable.
 
 ## Shell behavior
 
-Shelf detects Windows shells in this order:
+Shelf for Windows detects Windows shells in this order:
 
 1. PowerShell 7 (`pwsh.exe`)
 2. Windows PowerShell (`powershell.exe`)
 3. Command Prompt (`cmd.exe`)
 
-A valid saved shell remains selected. If it becomes unavailable, Shelf uses the first detected shell.
+A valid saved shell remains selected. If it becomes unavailable, Shelf for Windows uses the first
+detected shell.
 Command Prompt remains selectable in Settings. AI Organizer uses PowerShell 7 when available and
 falls back to Windows PowerShell.
 
@@ -56,8 +59,8 @@ the command is available in a new PowerShell window:
 Get-Command claude,codex,pi -ErrorAction SilentlyContinue
 ```
 
-You only need one provider to use Shelf. Each provider owns its authentication and session records.
-Shelf does not proxy or store provider credentials.
+You only need one provider to use Shelf for Windows. Each provider owns its authentication and
+session records. Shelf for Windows does not proxy or store provider credentials.
 
 For SSH workspaces, enable the built-in Windows OpenSSH Client and test the host outside Shelf first:
 
@@ -66,28 +69,39 @@ Get-Command ssh.exe
 ssh your-host
 ```
 
-Remote workspace paths remain POSIX paths even though Shelf runs on Windows.
+Remote workspace paths remain POSIX paths even though Shelf for Windows runs on Windows.
 
-## Upgrade
+## Move from upstream Shelf
 
-1. Close Shelf so no terminal or agent process remains active.
+Shelf for Windows uses a unique application identifier and MSI upgrade code. Installing it does not
+silently replace upstream Shelf 0.2.27 or another upstream release.
+
+The compatible `~/.shelf` workspace configuration and provider-owned session stores remain
+available. Close upstream Shelf before launching Shelf for Windows and do not run both applications
+at the same time. Window-specific WebView state can start with new defaults because the applications
+have separate identities.
+
+## Upgrade Shelf for Windows
+
+1. Close Shelf for Windows so no terminal or agent process remains active.
 2. Verify the new installer's checksum and signature.
 3. Run the new installer over the previous version.
-4. Launch Shelf and confirm workspaces, shell selection, tabs, and session discovery.
+4. Launch Shelf for Windows and confirm workspaces, shell selection, tabs, and session discovery.
 
-Shelf keeps compatible settings and state across an in-place upgrade. Installers reject version
-downgrades.
+Shelf for Windows keeps compatible settings and state across an in-place fork upgrade. Installers
+reject version downgrades.
 
 ## Uninstall
 
-Close Shelf, open Windows Settings, select Apps, then Installed apps, and uninstall Shelf. If Windows
-reports that a file is in use, confirm Shelf and its terminal children have exited before retrying.
+Close Shelf for Windows, open Windows Settings, select Apps, then Installed apps, and uninstall Shelf
+for Windows. If Windows reports that a file is in use, confirm the application and its terminal
+children have exited before retrying.
 
 ## Troubleshooting
 
-### Shelf opens to a blank or missing window
+### Shelf for Windows opens to a blank or missing window
 
-Install or repair the current Microsoft Edge WebView2 Runtime, then restart Shelf.
+Install or repair the current Microsoft Edge WebView2 Runtime, then restart Shelf for Windows.
 
 ### PowerShell 7 is not listed
 
@@ -96,8 +110,8 @@ using the automatically detected Windows PowerShell fallback.
 
 ### An agent command is not found
 
-Run `Get-Command` for the provider in a new terminal. Restart Shelf after changing PATH. Provider
-authentication remains provider-owned.
+Run `Get-Command` for the provider in a new terminal. Restart Shelf for Windows after changing PATH.
+Provider authentication remains provider-owned.
 
 ### SSH cannot connect
 
@@ -112,5 +126,5 @@ publisher.
 
 ### Installer upgrade or uninstall fails
 
-Close Shelf and confirm no `shelf.exe` remains in Task Manager. Retry the signed installer or
-uninstaller. Do not delete the application directory by hand.
+Close Shelf for Windows and confirm no `shelf-for-windows.exe` remains in Task Manager. Retry the
+signed installer or uninstaller. Do not delete the application directory by hand.

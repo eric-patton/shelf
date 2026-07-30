@@ -1,7 +1,7 @@
-# Windows release runbook
+# Shelf for Windows release runbook
 
-This runbook covers Shelf's signed Windows 0.3.0 release path. It does not authorize publishing an
-unsigned Windows asset.
+This runbook covers the independently maintained Shelf for Windows 0.3.0 release path from
+`eric-patton/shelf`. It does not authorize publishing an unsigned Windows asset.
 
 ## One-time Azure and GitHub setup
 
@@ -9,39 +9,43 @@ unsigned Windows asset.
 2. Complete Public Trust identity validation.
 3. Create a Public Trust certificate profile.
 4. Grant the workload identity the Artifact Signing Certificate Profile Signer role.
-5. Create an Azure workload identity federation entry for this repository and the protected
-   `windows-release` GitHub environment.
+5. Create an Azure workload identity federation entry with the exact subject
+   `repo:eric-patton/shelf:environment:windows-release`.
 6. Create the `windows-release` environment, require a release-owner approval, and restrict it to
    version tags.
-7. Add repository secrets:
+7. Create the `production-release` environment, require a release-owner approval, and restrict it to
+   version tags. This environment receives no Azure identity.
+8. Add repository secrets:
    - `AZURE_CLIENT_ID`
    - `AZURE_TENANT_ID`
    - `AZURE_SUBSCRIPTION_ID`
-8. Add repository variables:
+9. Add repository variables:
    - `ARTIFACT_SIGNING_ENDPOINT`
    - `ARTIFACT_SIGNING_ACCOUNT`
    - `ARTIFACT_SIGNING_PROFILE`
    - `WINDOWS_PUBLISHER_MATCH`
 
-The workflow requests `id-token: write` only for the protected Windows job. Pull requests do not run
-the signing job and never receive Azure signing authority.
+The workflow requests `id-token: write` only for the protected Windows signing job. Pull requests and
+the public publication job never receive Azure signing authority.
 
 ## Automated tag path
 
 A `v*` tag starts `.github/workflows/build.yml`:
 
-1. macOS builds its existing Apple Silicon DMG.
-2. Windows builds `shelf.exe` without bundling.
-3. Azure Login exchanges the GitHub OIDC token.
-4. The workflow installs Microsoft Artifact Signing Client Tools.
-5. Tauri patches `shelf.exe` for each bundle and invokes its signing hook before embedding it.
-6. Tauri invokes the same hook for the final MSI and NSIS installers.
-7. PowerShell rejects an invalid signature, missing timestamp, or unexpected publisher.
-8. The workflow writes SHA-256 checksum files.
-9. The release job publishes assets only after macOS and Windows jobs succeed.
+1. Windows builds `shelf-for-windows.exe` without bundling.
+2. Azure Login exchanges the GitHub OIDC token.
+3. The workflow installs Microsoft Artifact Signing Client Tools.
+4. Tauri patches `shelf-for-windows.exe` for each bundle and invokes its signing hook before
+   embedding it.
+5. Tauri invokes the same hook for the final MSI and NSIS installers.
+6. PowerShell rejects an invalid signature, missing timestamp, or unexpected publisher.
+7. The workflow writes SHA-256 checksum files.
+8. The workflow privately uploads the signed Windows assets for clean-system review.
+9. The `publish` job waits for approval of the separate `production-release` environment.
+10. After approval, the release job publishes only the reviewed Windows assets.
 
-If signing setup is missing or invalid, the Windows job fails and no unsigned Windows asset is
-published.
+If signing setup is missing or invalid, the Windows job fails. If clean-system review does not pass,
+reject the `production-release` deployment and no public release is created.
 
 ## Local release candidate
 
@@ -82,8 +86,11 @@ Complete every row with signed release assets before marking Windows GA.
 | AI Organizer normal command | Pending | Pending |
 | AI Organizer dangerous-command approval | Pending | Pending |
 | Restart recovery | Pending | Pending |
-| Upgrade from previous public release | Pending | Pending |
+| Migrate from upstream Shelf 0.2.27 | Pending | Pending |
+| Upgrade from previous Shelf for Windows release | Pending | Pending |
 | Uninstall with no active process | Pending | Pending |
 
 Record the tag, asset hashes, Windows build numbers, provider CLI versions, WebView2 version, signer
 subject, timestamp certificate, and reviewer for each completed matrix.
+
+Do not approve `production-release` until every applicable row passes on both supported systems.

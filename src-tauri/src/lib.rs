@@ -14,13 +14,13 @@ pub fn run() {
             tauri_plugin_log::Builder::new()
                 .targets([
                     // Persistent rolling log under the OS standard app log dir:
-                    //   macOS:   ~/Library/Logs/com.shelf.app/Shelf.log
-                    //   Windows: %LOCALAPPDATA%\com.shelf.app\logs\Shelf.log
-                    //   Linux:   ~/.local/share/com.shelf.app/logs/Shelf.log
+                    //   macOS:   ~/Library/Logs/com.ericpatton.shelf.windows/ShelfForWindows.log
+                    //   Windows: %LOCALAPPDATA%\com.ericpatton.shelf.windows\logs\ShelfForWindows.log
+                    //   Linux:   ~/.local/share/com.ericpatton.shelf.windows/logs/ShelfForWindows.log
                     Target::new(TargetKind::LogDir {
-                        file_name: Some("Shelf".into()),
+                        file_name: Some("ShelfForWindows".into()),
                     }),
-                    // Also keep stderr/console output for `target/debug/shelf` debugging.
+                    // Also keep stderr/console output for debug builds.
                     Target::new(TargetKind::Stdout),
                 ])
                 .max_file_size(5 * 1024 * 1024) // 5 MB before rotation
@@ -34,7 +34,7 @@ pub fn run() {
         .setup(|app| {
             app.manage(pty_plugin::PtyState::default());
             let window = app.get_webview_window("main").unwrap();
-            window.set_title("Shelf").ok();
+            window.set_title("Shelf for Windows").ok();
             #[cfg(target_os = "windows")]
             {
                 window.set_theme(Some(tauri::Theme::Dark)).ok();

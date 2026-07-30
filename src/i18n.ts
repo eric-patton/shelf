@@ -1,6 +1,6 @@
 const dict: Record<string, Record<string, string>> = {
   en: {
-    "home.title": "Shelf",
+    "home.title": "Shelf for Windows",
     "home.subtitle": "Select a workspace folder and click a session to start.",
     "home.hint1": "to add a project folder",
     "home.hint2": "Click a session to open it in a terminal tab",
@@ -65,7 +65,7 @@ const dict: Record<string, Record<string, string>> = {
     "settings.save_failed": "Failed to save settings: $1",
     "settings.save": "Save",
     "settings.cancel": "Cancel",
-    "settings.quit_title": "Quit Shelf?",
+    "settings.quit_title": "Quit Shelf for Windows?",
     "settings.quit_note": "Running terminals will be closed.",
     "settings.quit": "Quit",
     "settings.ai_title": "AI",
@@ -194,7 +194,7 @@ const dict: Record<string, Record<string, string>> = {
   },
 
   zh: {
-    "home.title": "Shelf",
+    "home.title": "Shelf for Windows",
     "home.subtitle": "选择一个工作区文件夹并点击会话开始。",
     "home.hint1": "添加项目文件夹",
     "home.hint2": "点击会话在终端标签页中打开",
@@ -259,7 +259,7 @@ const dict: Record<string, Record<string, string>> = {
     "settings.save_failed": "保存设置失败：$1",
     "settings.save": "保存",
     "settings.cancel": "取消",
-    "settings.quit_title": "退出 Shelf？",
+    "settings.quit_title": "退出 Shelf for Windows？",
     "settings.quit_note": "正在运行的终端将被关闭。",
     "settings.quit": "退出",
     "settings.ai_title": "AI",

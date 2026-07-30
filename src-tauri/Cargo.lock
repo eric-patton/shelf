@@ -4477,7 +4477,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "shelf"
+name = "shelf-for-windows"
 version = "0.3.0"
 dependencies = [
  "chrono",

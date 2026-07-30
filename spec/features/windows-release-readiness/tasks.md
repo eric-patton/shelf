@@ -9,8 +9,8 @@
   `scripts/qa/ensure-msedgedriver.ps1`.
 - [x] T4 Add pull-request Windows and macOS quality, audit, build, and Windows desktop jobs. File:
   `.github/workflows/ci.yml`.
-- [x] T5 Replace the tag-only build with dependency-ordered macOS and signed Windows release jobs,
-  Authenticode verification, checksums, and release publication. File:
+- [x] T5 Replace the tag-only build with a signed Windows release job, Authenticode verification,
+  checksums, artifact upload, and protected release publication. File:
   `.github/workflows/build.yml`.
 - [x] T6 Bump all version sources to `0.3.0` and add local MSI plus NSIS packaging and release
   verification scripts. Files: `package.json`, `package-lock.json`, `src-tauri/Cargo.toml`,
@@ -22,9 +22,31 @@
   zero vulnerabilities, Cargo audit had no blocking advisories, the real desktop smoke passed, and
   local MSI plus NSIS bundles were generated.
 - [H] T9 Provision and approve Azure Artifact Signing identity, Public Trust certificate profile,
-  GitHub OIDC federation, protected environment, and repository secrets. Owner: Eric Patton.
+  fork-bound GitHub OIDC federation, both protected environments, and repository configuration.
+  Owner: Eric Patton.
 - [H] T10 Run signed clean-system Windows 10 22H2 and Windows 11 x64 install, real-agent, SSH,
-  recovery, upgrade, uninstall, signature, and checksum matrix. Owner: Eric Patton.
+  recovery, upstream migration, fork upgrade, uninstall, signature, and checksum matrix. Owner:
+  Eric Patton.
 - [x] T11 Record touched files, validate the implemented automated scope, and append the convergence
   audit without resolving T9 or T10. Observed: automated feature validation completed with zero
   errors and zero warnings; the two human release gates remain unresolved.
+- [x] T12 Add failing release-contract coverage for `feat-004/AC-10` and `feat-004/AC-11`, covering
+  fork identity, MIT attribution, update ownership, distinct installer identity, and two-stage
+  publication. Observed: the updated contract failed on the old package, Tauri, and installer
+  identities before production files changed.
+- [x] T13 Apply the Shelf for Windows package, application, installer, update, and documentation
+  identities. Add the full MIT license and upstream attribution notice. Files: `package.json`,
+  `package-lock.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`,
+  `src-tauri/tauri.conf.json`, `src-tauri/src/commands/update.rs`, `README.md`, `README_zh.md`,
+  `docs/windows.md`, `LICENSE`, and `NOTICE`.
+- [x] T14 Limit public release assets to signed Windows installers, add the protected
+  `production-release` publication gate, and update the release-owner runbook. Observed:
+  `npm run test:release` passed with separate signing and publication environments, fork-owned
+  release links, no macOS release artifact, and no Azure authority in the publication job.
+- [x] T15 Run the complete unit, lint, audit, release-contract, debug build, desktop E2E, and unsigned
+  local installer suite. Fold the approved delta and append a new convergence audit. Observed: 15
+  Vitest tests and 36 Rust tests passed; TypeScript/Vite, formatting, Clippy, npm audit, Cargo audit,
+  release contract, debug build, real Tauri WebDriver smoke, MSI, and NSIS packaging passed. `cwin`
+  confirmed the Shelf for Windows home, quit dialog, and complete process-tree exit. Local MSI
+  SHA-256 is `a9d4b035d088df47b2dcdb642d50de53ec4b6ed6890aa710a33be40bb7565bf4`;
+  local NSIS SHA-256 is `2f142e0b0d347c831ddb5910f70435c5952cbaa801e305f3b3fbe2272f3db476`.

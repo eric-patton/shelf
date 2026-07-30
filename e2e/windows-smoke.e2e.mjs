@@ -4,7 +4,8 @@ import { spawn, spawnSync } from "node:child_process";
 
 const root = resolve(import.meta.dirname, "..");
 const binary = resolve(
-  process.env.SHELF_APP_BINARY || "src-tauri/target/debug/shelf.exe",
+  process.env.SHELF_APP_BINARY ||
+    "src-tauri/target/debug/shelf-for-windows.exe",
 );
 const driverDirectory = resolve(
   process.env.SHELF_WEBDRIVER_DIR || "src-tauri/target/webdriver",
@@ -142,11 +143,11 @@ try {
 
   // feat-004/AC-2
   await click('[data-tab-id="__start__"]');
-  const homeTitle = await waitFor("Shelf home", async () => {
+  const homeTitle = await waitFor("Shelf for Windows home", async () => {
     const value = await text(".start-page h2");
-    return value.includes("Shelf") ? value : null;
+    return value.includes("Shelf for Windows") ? value : null;
   });
-  if (!homeTitle.includes("Shelf")) {
+  if (!homeTitle.includes("Shelf for Windows")) {
     throw new Error(`unexpected home title: ${homeTitle}`);
   }
 

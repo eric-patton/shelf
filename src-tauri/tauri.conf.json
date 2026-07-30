@@ -1,7 +1,7 @@
 {
-  "productName": "Shelf",
+  "productName": "Shelf for Windows",
   "version": "0.3.0",
-  "identifier": "com.shelf.app",
+  "identifier": "com.ericpatton.shelf.windows",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -22,6 +22,9 @@
     },
     "windows": {
       "allowDowngrades": false,
+      "wix": {
+        "upgradeCode": "7ef88bb7-6239-432c-a7f3-91ec0d158583"
+      },
       "nsis": {
         "installMode": "currentUser"
       }
@@ -31,7 +34,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Shelf",
+        "title": "Shelf for Windows",
         "width": 1200,
         "height": 800,
         "resizable": true,

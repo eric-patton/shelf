@@ -27,3 +27,38 @@ The automated scope matches the canonical spec and plan. No unrequested release 
 secret, or public unsigned Windows path was added.
 
 verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)
+
+## run 2 - 2026-07-30
+
+baseline: spec sha256:85ed25c4e6a4, plan sha256:45cf72c6fa51, tasks sha256:61b54fd76f39
+
+implemented:
+
+- AC-1: `.github/workflows/ci.yml:16` keeps Windows and macOS quality jobs, with a separate Windows
+  desktop job at line 91.
+- AC-2: `e2e/windows-smoke.e2e.mjs` launches `shelf-for-windows.exe`, verifies the branded home,
+  detects Windows shells, and observes real PowerShell output through `tauri-driver`.
+- AC-3: `.github/workflows/ci.yml:81` and line 88 run npm and Cargo audits; local verification
+  reported zero npm vulnerabilities and no blocking Cargo advisory.
+- AC-4: `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json:2` align the
+  Shelf for Windows 0.3.0 identity. The explicit MSI upgrade code is at
+  `src-tauri/tauri.conf.json:26`, and local MSI plus NSIS packaging passed.
+- AC-5: `.github/workflows/build.yml:11` confines OIDC signing to `windows-release`, requests
+  `id-token: write` at line 14, and performs fail-closed signature verification at lines 71-76.
+- AC-6: `.github/workflows/build.yml:98` waits only for the signed Windows artifact, and line 100
+  requires `production-release` approval before the publication step.
+- AC-7: `README.md`, `README_zh.md`, `docs/windows.md`, and `docs/releasing-windows.md` document
+  Windows requirements, signed installation, upstream migration, lifecycle operations,
+  independent maintenance, and troubleshooting.
+- AC-8 and AC-9 remain unresolved human signoffs in `feature.md` and `[H]` tasks in `tasks.md`.
+  They are not implementation drift and prevent the feature from being marked done.
+- AC-10: `src-tauri/tauri.conf.json:2-26` defines the distribution identity,
+  `src-tauri/src/commands/update.rs:4` owns updates, `LICENSE:5` carries the full MIT grant, and
+  `NOTICE:7` preserves upstream attribution.
+- AC-11: `.github/workflows/build.yml:11-14` grants Azure OIDC only to signing, while lines 98-106
+  place artifact download and publication behind the separate protected environment.
+
+No public unsigned fallback, upstream-owned update source, implicit upstream endorsement, signing
+authority in the publication job, or unrequested release artifact was found.
+
+verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)

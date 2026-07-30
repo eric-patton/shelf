@@ -11,10 +11,17 @@
 - Bump the Windows GA baseline to version `0.3.0` across all version sources.
 - Split Windows release creation into build, application signing, bundling, installer signing,
   Authenticode verification, checksum, and publication phases.
+- Make `eric-patton/shelf` the release and update authority for the independently maintained Shelf
+  for Windows distribution.
+- Use a unique Tauri application identifier and explicit MSI upgrade code while retaining compatible
+  `~/.shelf` workspace configuration.
+- Retain the upstream MIT grant and add a full license plus attribution notice.
 - Authenticate to Azure through a protected GitHub environment and OIDC. Use Microsoft's Artifact
   Signing client tools through Tauri's post-patch `signCommand` hook so the embedded executable and
   final installers retain valid signatures.
-- Publish MSI, NSIS, DMG, and checksum assets only after every release job succeeds.
+- Upload signed MSI, NSIS, and checksum artifacts after the signing job, then require a separate
+  `production-release` environment approval before public publication.
+- Keep macOS CI coverage while limiting this fork's public release assets to Windows.
 - Record Azure provisioning and clean Windows 10 and Windows 11 validation as unresolved human tasks.
 
 ## Verification approach
@@ -28,6 +35,10 @@
 - `feat-004/AC-6` enters through release-workflow contract tests and checksum generation.
 - `feat-004/AC-7` enters through README and Windows release documentation checks.
 - `feat-004/AC-8` and `feat-004/AC-9` are recorded manual release gates.
+- `feat-004/AC-10` enters through release-contract checks for package identity, update source,
+  license, attribution, and fork-owned links.
+- `feat-004/AC-11` enters through release-contract checks for separate signing and publication
+  environments plus least-privilege job permissions.
 
 ## Commands
 

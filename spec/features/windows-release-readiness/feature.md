@@ -21,16 +21,16 @@ gate:
   product_global_hash: "sha256:7ab6d22efddf"
   constitution_hash: "sha256:ca056e8a9c50"
 converge:
-  last_run: 1
+  last_run: 2
   open: 0
   contradicts: 0
 human_signoff:
   - id: hs-1
-    description: Azure Artifact Signing Public Trust identity, profile, GitHub OIDC, secrets, and protected environment are approved.
+    description: Azure Artifact Signing Public Trust identity, profile, fork-bound GitHub OIDC, secrets, and both protected environments are approved.
     owner: Eric Patton
     resolved: false
   - id: hs-2
-    description: Signed release candidate passes clean Windows 10 22H2 and Windows 11 x64 matrix.
+    description: Signed Shelf for Windows release candidate passes the clean Windows 10 22H2 and Windows 11 x64 matrix.
     owner: Eric Patton
     resolved: false
 open_decisions: []
@@ -40,4 +40,5 @@ extends: []
 
 # Feature notes: Windows release readiness
 
-Automated assurance, signed installers, clean-system validation, and public Windows documentation.
+Independent Shelf for Windows distribution identity, automated assurance, signed installers,
+two-stage publication, clean-system validation, and public Windows documentation.

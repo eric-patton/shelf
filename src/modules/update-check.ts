@@ -12,7 +12,7 @@ interface UpdateInfo {
   published_at: string;
 }
 
-const SKIPPED_VERSION_KEY = "shelf.skippedUpdateVersion";
+const SKIPPED_VERSION_KEY = "shelf-for-windows.skippedUpdateVersion";
 
 /**
  * Run on app start (with a small delay so we don't block the first paint).

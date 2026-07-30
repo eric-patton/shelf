@@ -1,8 +1,8 @@
 ## Why
 
-Functional Windows code is not a supported Windows release until changes are continuously verified,
-installers carry a trusted publisher signature, artifacts are integrity-checked, and clean supported
-systems complete the release matrix.
+Functional Windows code is not a supported Shelf for Windows release until changes are continuously
+verified, the independent distribution identity is explicit, installers carry a trusted publisher
+signature, artifacts are integrity-checked, and clean supported systems complete the release matrix.
 
 ## User stories
 
@@ -16,6 +16,9 @@ systems complete the release matrix.
   long-lived Azure secret.
 - As a new Windows user, I want accurate requirements, installation, and troubleshooting guidance.
 - As a release owner, I want a repeatable Windows 10 and Windows 11 matrix before declaring GA.
+- As a Windows user, I want the distribution, updater, installer identity, license, and attribution
+  to identify the independently maintained fork without implying upstream endorsement.
+- As a release owner, I want signed artifacts reviewed before public publication.
 
 ## Behavior & scenarios
 
@@ -24,15 +27,16 @@ systems complete the release matrix.
   - When GitHub Actions evaluates the pull request
   - Then frontend, Rust, audit, Windows, macOS, and Windows desktop checks report independently
 - **Scenario: Windows desktop smoke**
-  - Given a debug Shelf executable and the Windows WebView2 driver
-  - When WebDriver starts Shelf
+  - Given a debug Shelf for Windows executable and the Windows WebView2 driver
+  - When WebDriver starts Shelf for Windows
   - Then it observes the home screen, detects Windows shells, creates a terminal, and executes a
     PowerShell command
 - **Scenario: Release tag**
-  - Given a version tag and an approved `windows-release` GitHub environment
+  - Given a version tag and approved `windows-release` and `production-release` GitHub environments
   - When the release workflow runs
   - Then Azure OIDC authenticates, signs the application executable, bundles MSI and NSIS, signs both
-    installers, verifies signatures, and publishes checksums with macOS and Windows assets
+    installers, verifies signatures, privately uploads Windows artifacts for review, and publishes
+    them only after the separate publication approval
 - **Scenario: Missing signing setup**
   - Given Azure identity, profile, or repository secrets are absent
   - When a release tag runs
@@ -40,7 +44,8 @@ systems complete the release matrix.
 - **Scenario: Install or upgrade**
   - Given a clean supported x64 Windows system
   - When the user verifies and runs the installer
-  - Then Shelf installs, launches with WebView2, upgrades over the prior release, and uninstalls
+  - Then Shelf for Windows installs with a distinct identity, reuses compatible `~/.shelf`
+    workspace configuration, upgrades over a prior fork release when one exists, and uninstalls
     without leaving an active process
 - **Scenario: Troubleshooting**
   - Given PowerShell, WebView2, an agent CLI, SSH, or signing trust is unavailable
@@ -58,22 +63,31 @@ systems complete the release matrix.
 - [ ] AC-3: npm and Cargo audits run in CI, and the committed dependency graph has no known high or
   critical npm advisories.
 - [ ] AC-4: A local or CI Windows release build produces x64 MSI and NSIS installers with consistent
-  `0.3.0` application, package, Cargo, and Tauri versions.
+  Shelf for Windows package, executable, application, installer, Cargo, Tauri, and `0.3.0` version
+  identities.
 - [ ] AC-5: The protected tag workflow uses GitHub OIDC and Azure Artifact Signing through Tauri's
   post-patch signing hook, signs the Shelf executable before it is embedded, signs final MSI and NSIS
   assets, and verifies valid Authenticode status before upload. No unsigned Windows fallback is
   published.
-- [ ] AC-6: A tag release publishes Windows MSI and NSIS, the existing macOS DMG, and SHA-256 checksum
-  files with generated release notes.
+- [ ] AC-6: A tag release privately uploads Windows MSI, NSIS, and SHA-256 checksum artifacts, then
+  publishes the reviewed Windows assets with generated release notes only after
+  `production-release` approval.
 - [ ] AC-7: Public documentation lists Windows 10 22H2 and Windows 11 x64 support, WebView2 and agent
   requirements, installer choices, PowerShell selection, SSH behavior, upgrade and uninstall steps,
-  signature verification, and common troubleshooting.
+  signature verification, upstream migration, independent maintenance, attribution, and common
+  troubleshooting.
 - [ ] AC-8: Azure Artifact Signing Public Trust and protected release setup are approved. (manual)
-  This covers the identity, certificate profile, GitHub OIDC federation, repository secrets, and
-  protected `windows-release` environment.
+  This covers the identity, certificate profile, exact fork-bound GitHub OIDC federation,
+  repository configuration, and protected `windows-release` plus `production-release` environments.
 - [ ] AC-9: Signed bundles pass the clean Windows 10 and Windows 11 release matrix. (manual)
   This covers MSI and NSIS install, launch, terminal, real Claude, Codex, and pi, SSH, restart
-  recovery, upgrade, uninstall, signature, and checksum checks on clean supported x64 systems.
+  recovery, upstream Shelf 0.2.27 migration, applicable fork upgrade, uninstall, signature, and
+  checksum checks on clean supported x64 systems.
+- [ ] AC-10: Package metadata, Tauri identity, update source, public documentation, license, and
+  attribution consistently identify Shelf for Windows as an independently maintained distribution
+  from `eric-patton/shelf`, with a unique application identifier and MSI upgrade code.
+- [ ] AC-11: The tag workflow uploads signed Windows artifacts before a distinct protected
+  `production-release` approval, and only the signing job receives Azure OIDC permission.
 
 ## Known sharp edges
 
@@ -83,7 +97,12 @@ systems complete the release matrix.
 ## Edge cases & errors
 
 - A pull request from an untrusted fork never receives Azure signing permissions.
+- The GitHub OIDC subject is exactly
+  `repo:eric-patton/shelf:environment:windows-release`; an upstream or renamed repository does not
+  inherit signing access.
 - A tag without the protected environment or required secrets cannot publish Windows assets.
+- Rejecting or withholding `production-release` approval leaves signed artifacts private and creates
+  no public release.
 - A signature with an invalid status, missing timestamp, or unexpected publisher fails the workflow.
 - A checksum script excludes its own output file and uses relative asset names.
 - WebDriver closes Shelf and its terminal tree even when an assertion fails.
@@ -98,6 +117,8 @@ systems complete the release matrix.
 - Accessibility: the desktop smoke locates controls by stable semantic identifiers and the existing
   keyboard-accessible UI.
 - Reliability: build, sign, verify, checksum, and publish are separate failure boundaries.
+- Distribution integrity: the application update source, public release links, installer identity,
+  and documented maintainer agree on the user-owned fork.
 
 ## Open questions
 
