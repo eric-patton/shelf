@@ -27,8 +27,9 @@ signature, artifacts are integrity-checked, and clean supported systems complete
   - When GitHub Actions evaluates the pull request
   - Then frontend, Rust, audit, Windows, macOS, and Windows desktop checks report independently
 - **Scenario: Windows desktop smoke**
-  - Given a debug Shelf for Windows executable and the Windows WebView2 driver
-  - When WebDriver starts Shelf for Windows
+  - Given a debug Shelf for Windows executable built with the explicit `e2e` feature
+  - When the official WebdriverIO Tauri service starts Shelf for Windows through its embedded W3C
+    WebDriver provider
   - Then it observes the home screen, detects Windows shells, creates a terminal, and executes a
     PowerShell command
 - **Scenario: Release tag**
@@ -57,9 +58,10 @@ signature, artifacts are integrity-checked, and clean supported systems complete
 - [ ] AC-1: Pull requests and main-branch pushes run locked dependency install, Vitest, TypeScript
   build, Rust formatting, Clippy with warnings denied, Rust tests, and debug Tauri no-bundle builds on
   Windows and macOS.
-- [ ] AC-2: Windows CI drives the real debug Tauri executable through a W3C harness and
-  `tauri-driver`, verifies the home and settings shell UI, creates a PowerShell terminal, and
-  observes command output without adding a vulnerable browser-test dependency graph.
+- [ ] AC-2: Windows CI drives the real debug Tauri executable through the official WebdriverIO
+  Tauri service and its embedded W3C WebDriver provider, verifies the home and settings shell UI,
+  creates a PowerShell terminal, and observes command output without a high or critical dependency
+  advisory.
 - [ ] AC-3: npm and Cargo audits run in CI, and the committed dependency graph has no known high or
   critical npm advisories.
 - [ ] AC-4: A local or CI Windows release build produces x64 MSI and NSIS installers with consistent
@@ -93,6 +95,8 @@ signature, artifacts are integrity-checked, and clean supported systems complete
 
 - A new non-Store publisher may still encounter Microsoft Defender SmartScreen reputation warnings
   while reputation accumulates, even when Authenticode is valid.
+- WebdriverIO Tauri service 1.2.0 performs a Windows Edge compatibility preflight and may cache a
+  matching Edge WebDriver, even though the W3C test session uses only the embedded provider.
 
 ## Edge cases & errors
 
@@ -105,7 +109,7 @@ signature, artifacts are integrity-checked, and clean supported systems complete
   no public release.
 - A signature with an invalid status, missing timestamp, or unexpected publisher fails the workflow.
 - A checksum script excludes its own output file and uses relative asset names.
-- WebDriver closes Shelf and its terminal tree even when an assertion fails.
+- WebdriverIO closes Shelf and its terminal tree even when an assertion fails.
 - A missing agent CLI is documented as a requirement, not treated as an installer failure.
 
 ## Non-functional requirements
@@ -114,6 +118,8 @@ signature, artifacts are integrity-checked, and clean supported systems complete
   release state.
 - Security: release authentication uses OIDC, protected environment approval, least-privilege
   permissions, and no long-lived client secret.
+- Test security: Tauri WebDriver plugins and capabilities are registered only in an explicit E2E
+  build. Normal development and release builds exclude them.
 - Accessibility: the desktop smoke locates controls by stable semantic identifiers and the existing
   keyboard-accessible UI.
 - Reliability: build, sign, verify, checksum, and publish are separate failure boundaries.

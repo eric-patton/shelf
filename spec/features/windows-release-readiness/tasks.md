@@ -91,6 +91,10 @@
   `scripts/qa/ensure-msedgedriver.ps1`. Observed: the release contract passed and verifies that
   public release builds cannot enable the E2E feature or capability. Trace: `feat-004/AC-1`,
   `feat-004/AC-2`.
-- [ ] T24 Run the local E2E, build, lint, unit, release-contract, and dependency-audit gates, then
+- [x] T24 Run the local E2E, build, lint, unit, release-contract, and dependency-audit gates, then
   push and confirm the complete hosted workflow passes. Fold the approved delta and append a
-  convergence audit. Trace: `feat-004/AC-1`, `feat-004/AC-2`, `feat-004/AC-3`.
+  convergence audit. Observed: clean npm install, 15 Vitest tests, TypeScript and Vite, normal and
+  E2E Rust Clippy, 36 Rust tests, npm audit, Cargo audit, normal and E2E Tauri builds, release
+  contract, embedded real-app PowerShell smoke, and process teardown passed locally. GitHub Actions
+  run `30552560129` passed Windows quality, macOS quality, dependency audit, and Windows desktop
+  smoke. Trace: `feat-004/AC-1`, `feat-004/AC-2`, `feat-004/AC-3`.

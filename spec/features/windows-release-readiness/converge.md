@@ -131,3 +131,41 @@ The runner-image compatibility pin preserves the specified blocking real-app pro
 weaken, skip, or reclassify the desktop test.
 
 verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)
+
+## run 6 - 2026-07-30
+
+baseline: spec sha256:203a105c3206, plan sha256:b7a4dd6fb84b, tasks sha256:5ec22fbc4f23
+
+implemented:
+
+- AC-1: `.github/workflows/ci.yml:16-17` runs the quality matrix on `windows-latest` and
+  `macos-latest`, while lines 91-120 retain the independent real desktop job.
+- AC-2: `.github/workflows/ci.yml:118` builds the explicit E2E configuration,
+  `e2e/wdio.conf.mjs:40-44` selects the official service and embedded provider, and
+  `e2e/windows-smoke.e2e.mjs:4-36` proves the branded home, Windows shell settings, terminal
+  creation, and real PowerShell output. Hosted run `30552560129` passed this job.
+- AC-3: `.github/workflows/ci.yml:81-88` runs npm and Cargo audits. `package.json:41-44` pins the
+  patched transitive overrides, and the hosted dependency audit passed.
+- AC-4: `package.json:2-4` and `src-tauri/tauri.conf.json:2-26` retain the Shelf for Windows 0.3.0
+  package, application, and distinct installer identities.
+- AC-5: `.github/workflows/build.yml:11-14` confines OIDC to `windows-release`, and lines 64-76
+  retain application, installer, and signature verification steps.
+- AC-6: `.github/workflows/build.yml:83-100` retains private signed artifacts, checksums, and the
+  separate protected publication environment.
+- AC-7: `README.md:49-66` and `docs/releasing-windows.md:71` retain supported-system,
+  installation, verification, and clean-matrix guidance.
+- AC-8 and AC-9 remain unresolved human signoffs in `feature.md` and `[H]` tasks in `tasks.md`.
+  They are explicit manual release gates, not implementation drift.
+- AC-10: `src-tauri/tauri.conf.json:2-26`, `src-tauri/src/commands/update.rs:4`, `LICENSE:5`,
+  `NOTICE:7`, and `README.md:5-55` retain fork-owned identity, updates, license, attribution, and
+  independent-maintenance disclosure.
+- AC-11: `.github/workflows/build.yml:11-14` and lines 98-100 retain separate least-privilege
+  signing and publication environments.
+
+The E2E Rust plugins are optional at `src-tauri/Cargo.toml:35-48`, conditionally registered at
+`src-tauri/src/lib.rs:35-38`, and available only through the inline test capability at
+`src-tauri/tauri.e2e.conf.json:4-12`. The production config selects only `default` at
+`src-tauri/tauri.conf.json:48`. No unrequested product behavior, public unsigned fallback, signing
+authority, or production automation server was found.
+
+verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)

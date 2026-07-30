@@ -27,5 +27,5 @@ but the test session connects only to the embedded provider.
 ## Status
 
 - [x] delta reviewed by analyze
-- [ ] implemented and verified
-- [ ] folded into the canonical feature spec
+- [x] implemented and verified
+- [x] folded into the canonical feature spec
