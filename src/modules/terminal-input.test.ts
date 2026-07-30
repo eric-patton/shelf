@@ -22,9 +22,9 @@ describe("terminal control-key input", () => {
     expect(terminalInputForKey(keyEvent())).toBe("\x0a");
   });
 
-  it("protects the Codex newline from trailing-line cleanup [feat-002/AC-11]", () => {
+  it("sends Codex a win32-input-mode Ctrl+J keystroke pair [feat-002/AC-11]", () => {
     expect(terminalInputForKey(keyEvent(), "codex")).toBe(
-      "\x1b[200~\n \x1b[201~\x1b[D",
+      "\x1b[74;36;10;1;8;1_\x1b[74;36;10;0;8;1_",
     );
   });
 

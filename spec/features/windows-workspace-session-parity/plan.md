@@ -18,9 +18,11 @@
   themes.
 - Disable WebView2 browser-only accelerator keys on Windows so terminal shortcuts such as `Ctrl+J`
   reach the page instead of opening browser features. Translate exact `Ctrl+J` keydown at Shelf's
-  xterm boundary. Standard terminals receive LF, while Codex receives one bracketed-paste newline
-  with a trailing-space guard and a cursor-left correction. The guard keeps Codex from discarding
-  an otherwise empty final pasted line while leaving the caret ready for more text.
+  xterm boundary. Standard terminals receive LF, while Codex receives a win32-input-mode keystroke
+  pair (keydown and keyup of virtual key `J` with `LEFT_CTRL_PRESSED` and char LF). ConPTY passes
+  that pair through as the exact native Ctrl+J key events Windows Terminal produces, which Codex
+  binds to newline insertion. ConPTY swallows bracketed-paste input markers and re-encodes bare LF
+  as Ctrl+Enter, so byte-level newline encodings never reach Codex's composer.
   Omit the WebView2 setting in embedded WebDriver builds because its automation input transport
   becomes unresponsive when the COM setting is changed.
 - Store a custom tab title as an optional backward-compatible saved-state field. Keep automatic

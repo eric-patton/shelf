@@ -79,3 +79,35 @@ No contradictory or unrequested behavior was found in the touched terminal input
 WebView2 settings, or isolated E2E state surfaces.
 
 verdict: open 1 (missing 0, partial 1, contradicts 0, unrequested 0)
+
+## run 4 - 2026-07-30
+
+baseline: spec sha256:7d401b47990b, plan sha256:e4a9bc16d4f7, tasks sha256:0471e82916b3
+
+traced defect (gap-001 physical confirmation failed):
+
+- User observation in the installed pilot: Ctrl+J in a Codex tab moved the caret down for a moment,
+  then the newline vanished. The run-3 bracketed-paste implementation did not satisfy AC-11.
+- Root cause, established with a ConPTY input probe (portable_pty spawning a child that dumps raw
+  `INPUT_RECORD`s, the same PTY pipeline `pty_write` uses): ConPTY's input parser swallows the
+  `ESC[200~` and `ESC[201~` bracketed-paste markers entirely and re-encodes the bare LF as a
+  Ctrl+Enter key event. Codex, which reads Win32 console key events via crossterm, received
+  Ctrl+Enter, Space, Left instead of a protected pasted newline, so no paste event and no
+  persistent newline ever reached its composer.
+- Resolution: `terminalInputForKey` now emits a win32-input-mode keystroke pair for Codex tabs,
+  `ESC[74;36;10;1;8;1_` then `ESC[74;36;10;0;8;1_` (keydown and keyup of virtual key 0x4A `J`,
+  scancode 0x24, char LF, LEFT_CTRL_PRESSED). The probe confirmed ConPTY forwards this as the
+  exact native Ctrl+J KEY_EVENT_RECORD pair Windows Terminal produces.
+- Evidence against the real binary: Codex CLI 0.146.0 driven headless under the identical
+  portable_pty pipeline. With the old sequence the composer collapsed `hello` + Ctrl+J + `world`
+  to one line `helloworld`. With the win32-input-mode pair the composer kept `hello` and `world`
+  on two lines with the caret on the second line and no draft submission.
+- Implementation and tests: `src/modules/terminal-input.ts:13`, `src/modules/terminal-input.test.ts:25`.
+  Plan mechanism text updated to describe the win32-input-mode encoding.
+
+partial:
+
+- gap-001 remains open pending user confirmation of AC-11 in the installed pilot with the corrected
+  encoding. Automated boundary coverage and real-binary headless verification are complete.
+
+verdict: open 1 (missing 0, partial 1, contradicts 0, unrequested 0)
