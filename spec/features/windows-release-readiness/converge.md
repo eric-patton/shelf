@@ -190,3 +190,39 @@ long-lived credential, signing permission outside `windows-release`, or unreques
 behavior. No missing, partial, contradictory, or unrequested implementation was found.
 
 verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)
+
+## run 8 - 2026-07-30
+
+baseline: spec sha256:0702520ebd76, plan sha256:e71f14b9f0d9, tasks sha256:25a310b52514
+
+implemented:
+
+- AC-1 through AC-11 retain the implementations and hosted proof recorded in runs 6 and 7.
+- AC-12: `scripts/qa/build-windows-pilot.ps1:10-181` validates or creates a six-month
+  non-exportable current-user code-signing key, installs only its public certificate into the
+  current user's Root and TrustedPublisher stores, invokes the pilot-only Tauri signing
+  configuration, explicitly signs Tauri's restored standalone application, verifies the
+  application plus MSI and NSIS signatures, writes checksums, and stages ignored local artifacts.
+- AC-12: `scripts/qa/sign-windows-pilot.ps1:8-73` binds signing to the exact validated thumbprint,
+  requires the expected subject and code-signing EKU, requests an RFC3161 timestamp, and fails on an
+  invalid signer or missing timestamp. It never accepts or exports a PFX.
+- AC-12: `scripts/qa/verify-windows-pilot-contract.ps1:49-109` proves the certificate, trust,
+  private-key, post-bundle application-signing, artifact, documentation, and public-workflow
+  boundaries. `npm run test:pilot` passed.
+- AC-12: the real pilot build produced valid DigiCert-timestamped application, MSI, and NSIS
+  signatures under thumbprint `93DDDA164034C1227754A3EC752FB6004BE8D531`. Windows reported the
+  private key as non-exportable. The signed NSIS current-user installation completed with exit code
+  0, the installed application's signature remained valid, `cwin` observed the installed Shelf for
+  Windows UI with an active Windows PowerShell terminal, and Quit left no Shelf process or newly
+  orphaned terminal.
+- AC-7 and AC-12: `docs/releasing-windows.md:83-146` documents the local-only trust boundary,
+  creation, inspection, installation, prohibition on public distribution, and exact-thumbprint
+  removal path.
+- AC-5, AC-6, AC-8, AC-9, and AC-11 remain Azure-backed public release requirements.
+  `.github/workflows/build.yml` contains no pilot path, and the two public-release human signoffs
+  remain unresolved.
+
+No private signing material, PFX path, machine-wide trust, GitHub pilot signing job, public
+self-signed fallback, requirement contradiction, or unrequested distribution behavior was found.
+
+verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)

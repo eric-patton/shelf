@@ -19,6 +19,8 @@ signature, artifacts are integrity-checked, and clean supported systems complete
 - As a Windows user, I want the distribution, updater, installer identity, license, and attribution
   to identify the independently maintained fork without implying upstream endorsement.
 - As a release owner, I want signed artifacts reviewed before public publication.
+- As the first Shelf for Windows user, I want a locally trusted pilot installer so that I can test
+  the real installed application before funding public code signing.
 
 ## Behavior & scenarios
 
@@ -42,6 +44,12 @@ signature, artifacts are integrity-checked, and clean supported systems complete
   - Given Azure identity, profile, or repository secrets are absent
   - When a release tag runs
   - Then the protected Windows release job fails before publishing an unsigned Windows asset
+- **Scenario: Self-signed first-user pilot**
+  - Given the maintainer is running Windows under a personal user account
+  - When the documented local pilot command runs
+  - Then it creates or reuses a non-exportable current-user code-signing key, explicitly trusts its
+    public certificate for that user, signs and verifies the application plus MSI and NSIS
+    installers, and stages checksummed local artifacts that are prohibited from public distribution
 - **Scenario: Install or upgrade**
   - Given a clean supported x64 Windows system
   - When the user verifies and runs the installer
@@ -91,11 +99,17 @@ signature, artifacts are integrity-checked, and clean supported systems complete
   from `eric-patton/shelf`, with a unique application identifier and MSI upgrade code.
 - [ ] AC-11: The tag workflow uploads signed Windows artifacts before a distinct protected
   `production-release` approval, and only the signing job receives Azure OIDC permission.
+- [ ] AC-12: Running the documented Windows pilot command creates or reuses the current-user
+  self-signed pilot certificate, signs and validates the application, MSI, and NSIS artifacts with
+  the expected subject and timestamp, writes checksums and a public certificate without exporting
+  private signing material, and leaves the Azure-backed public tag workflow unchanged.
 
 ## Known sharp edges
 
 - A new non-Store publisher may still encounter Microsoft Defender SmartScreen reputation warnings
   while reputation accumulates, even when Authenticode is valid.
+- A self-signed pilot certificate is trusted only for the Windows user who explicitly installs its
+  public certificate. It is not public publisher identity and must not be distributed.
 - WebdriverIO Tauri service 1.2.0 performs a Windows Edge compatibility preflight and may cache a
   matching Edge WebDriver, even though the W3C test session uses only the embedded provider.
 
@@ -110,6 +124,11 @@ signature, artifacts are integrity-checked, and clean supported systems complete
 - Rejecting or withholding `production-release` approval leaves signed artifacts private and creates
   no public release.
 - A signature with an invalid status, missing timestamp, or unexpected publisher fails the workflow.
+- A local pilot certificate is reusable only when its subject, thumbprint, code-signing EKU,
+  private-key presence, non-exportability, and validity satisfy the pilot contract.
+- Pilot signing and trust operations use the exact validated thumbprint. No subject-only signing
+  fallback or PFX export is permitted.
+- Removing the pilot certificate requires its exact thumbprint and exact expected subject.
 - A checksum script excludes its own output file and uses relative asset names.
 - WebdriverIO closes Shelf and its terminal tree even when an assertion fails.
 - A missing agent CLI is documented as a requirement, not treated as an installer failure.
@@ -120,6 +139,9 @@ signature, artifacts are integrity-checked, and clean supported systems complete
   release state.
 - Security: release authentication uses OIDC, protected environment approval, least-privilege
   permissions, and no long-lived client secret.
+- Pilot security: the local pilot uses current-user certificate stores, a bounded non-exportable
+  private key, exact-thumbprint selection, fail-closed timestamp and signature verification, and an
+  ignored local artifact directory.
 - Test security: Tauri WebDriver plugins and capabilities are registered only in an explicit E2E
   build. Normal development and release builds exclude them.
 - Accessibility: the desktop smoke locates controls by stable semantic identifiers and the existing

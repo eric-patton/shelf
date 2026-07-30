@@ -29,6 +29,15 @@
   `production-release` environment approval before public publication.
 - Keep macOS CI coverage while limiting this fork's public release assets to Windows.
 - Record Azure provisioning and clean Windows 10 and Windows 11 validation as unresolved human tasks.
+- Add a separate local-only pilot signing configuration. Create or reuse a SHA-256 code-signing
+  certificate with a non-exportable private key in `Cert:\CurrentUser\My`, trust only its public
+  certificate in the current user's Root and TrustedPublisher stores, and never export a PFX.
+- Orchestrate pilot build, signing, signature verification, checksum generation, public certificate
+  export, and ignored artifact staging through one PowerShell entry point. Keep the public tag
+  workflow and Azure signing configuration unchanged.
+- Document that the pilot certificate authorizes any binary signed with its private key for that
+  Windows user, provide exact inspection and removal commands, and prohibit public distribution of
+  pilot artifacts.
 
 ## Verification approach
 
@@ -46,6 +55,8 @@
   license, attribution, and fork-owned links.
 - `feat-004/AC-11` enters through release-contract checks for separate signing and publication
   environments plus least-privilege job permissions.
+- `feat-004/AC-12` enters through a pilot contract test and the real pilot build, signature,
+  timestamp, checksum, public-certificate, install, launch, and process-exit observations.
 
 ## Commands
 
@@ -61,3 +72,5 @@
 - `npm run tauri build -- --debug --no-bundle`
 - `npm run tauri build -- --bundles msi,nsis`
 - `pwsh -File scripts/qa/verify-release-contract.ps1`
+- `npm run test:pilot`
+- `npm run build:pilot`

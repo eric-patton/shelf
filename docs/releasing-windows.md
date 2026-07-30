@@ -80,6 +80,70 @@ npm run tauri build -- --bundles msi,nsis
 
 Never upload the local unsigned Windows bundles to a public release.
 
+## Self-signed first-user pilot
+
+The local pilot path is for the maintainer to use Shelf for Windows on a personal Windows account
+before public signing is funded. It is not for public distribution and does not satisfy the Azure or
+clean-system GA gates.
+
+Run the contract and build:
+
+```powershell
+npm run test:pilot
+npm run build:pilot
+```
+
+The build performs these operations for the current Windows user only:
+
+1. It creates or reuses a six-month `Shelf for Windows Local Pilot` code-signing certificate in
+   `Cert:\CurrentUser\My`.
+2. The private key is non-exportable. The scripts never create or export a PFX.
+3. It installs only the public certificate in `Cert:\CurrentUser\Root` and
+   `Cert:\CurrentUser\TrustedPublisher`.
+4. Tauri signs `shelf-for-windows.exe`, the MSI, and the NSIS installer with the exact validated
+   certificate thumbprint and an RFC3161 timestamp.
+5. It rejects a missing or invalid signature, unexpected publisher, missing timestamp, or build
+   failure.
+6. It stages the signed files, public `.cer`, checksums, and a non-secret manifest under
+   `artifacts\windows-pilot`. This directory is ignored by Git.
+
+Inspect the manifest and signatures:
+
+```powershell
+$pilot = Get-Content .\artifacts\windows-pilot\pilot-manifest.json -Raw | ConvertFrom-Json
+$pilot
+Get-ChildItem .\artifacts\windows-pilot -File |
+  Where-Object Extension -In '.exe', '.msi' |
+  Get-AuthenticodeSignature |
+  Select-Object Path, Status,
+    @{Name='Subject'; Expression={$_.SignerCertificate.Subject}},
+    @{Name='Timestamp'; Expression={$_.TimeStamperCertificate.Subject}}
+Get-Content .\artifacts\windows-pilot\SHA256SUMS.windows-pilot.txt
+```
+
+Install the NSIS artifact whose name ends in `-setup.exe`. The installer uses current-user mode, so
+it does not change machine-wide certificate trust. Use the MSI only when specifically testing the
+MSI path.
+
+This trust is intentionally narrow but still meaningful: while the pilot certificate remains
+trusted, Windows trusts any binary signed with its private key for this user. Do not copy the
+certificate or pilot artifacts to another computer, do not publish them to GitHub Releases, and do
+not treat a pilot signature as proof of public publisher identity.
+
+After uninstalling Shelf for Windows through Windows Settings, remove the pilot certificate from all
+three current-user stores with the exact thumbprint recorded in the manifest:
+
+```powershell
+$pilot = Get-Content .\artifacts\windows-pilot\pilot-manifest.json -Raw | ConvertFrom-Json
+pwsh -NoLogo -NoProfile -File .\scripts\qa\remove-windows-pilot-certificate.ps1 `
+  -Thumbprint $pilot.certificateThumbprint
+```
+
+The removal script refuses to remove a certificate unless its thumbprint is explicitly supplied and
+its subject is exactly the Shelf for Windows pilot subject. Removing it causes the pilot signatures
+to become untrusted for this user. A future `npm run build:pilot` creates a new certificate when no
+valid pilot certificate remains.
+
 ## Clean-system matrix
 
 Complete every row with signed release assets before marking Windows GA.

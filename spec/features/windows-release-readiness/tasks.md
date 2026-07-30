@@ -110,3 +110,33 @@
   Observed: GitHub reported owner ID `248889511`, repository ID `1316644982`, and immutable prefix
   `repo:eric-patton@248889511/shelf@1316644982`; the release contract and feature validation
   passed, and hosted run `30553686208` passed all four jobs. Trace: `feat-004/AC-8`.
+- [x] T28 Add failing pilot contract coverage for the local certificate boundary, pilot-only Tauri
+  signing configuration, private-key non-exportability, public-certificate export, signature
+  verification, ignored artifact output, documentation, and unchanged Azure public workflow.
+  Observed: `npm run test:pilot` failed because the pilot Tauri configuration did not exist before
+  implementation. File: `scripts/qa/verify-windows-pilot-contract.ps1`. Trace: `feat-004/AC-12`.
+- [x] T29 Implement the current-user pilot certificate lifecycle, signing wrapper, Tauri pilot
+  configuration, orchestrated MSI plus NSIS build, signature verification, checksum generation, and
+  public-certificate staging. Files: `package.json`, `scripts/qa/`,
+  `src-tauri/tauri.windows-pilot.conf.json`. Observed: the six-month certificate uses a
+  non-exportable Microsoft Software Key Storage Provider key and exact thumbprint
+  `93DDDA164034C1227754A3EC752FB6004BE8D531`; the application, MSI, and NSIS signatures are valid and
+  DigiCert timestamped. Trace: `feat-004/AC-12`.
+- [x] T30 Document pilot creation, trust scope, artifact locations, verification, installation,
+  private-key handling, certificate removal, and the prohibition on public distribution. Files:
+  `docs/releasing-windows.md`. Observed: `npm run test:pilot` passed. Trace: `feat-004/AC-7`,
+  `feat-004/AC-12`.
+- [x] T31 Run the pilot contract and real pilot build, verify the application plus MSI and NSIS
+  signatures and checksums, install the NSIS artifact, launch Shelf for Windows, observe the home
+  screen, exit the process tree, and record the resulting evidence. Observed: the NSIS current-user
+  installation completed with exit code 0, the installed executable retained a valid pilot
+  signature, `cwin` captured the installed home with an active Windows PowerShell terminal, and
+  confirming Quit left no Shelf process or newly orphaned terminal. Installer SHA-256:
+  `5a4f63fb363cc8f4aee28a16b00020c68e3b91196b388be2dc3bec140a3f84c0`. MSI SHA-256:
+  `ac4594bea97f6d161e344bb5512c590296f4cefc69280c2ce228966e3a33682d`. Trace:
+  `feat-004/AC-12`.
+- [x] T32 Fold the approved delta, validate the feature, and append a convergence audit without
+  resolving the Azure public-release or clean-system GA signoffs. Observed: the canonical spec now
+  includes AC-12, feature validation reported zero errors and zero warnings, and convergence run 8
+  found no drift. Azure provisioning and the clean Windows 10 plus Windows 11 matrix remain
+  unresolved human gates.
