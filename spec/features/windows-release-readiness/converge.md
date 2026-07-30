@@ -169,3 +169,24 @@ The E2E Rust plugins are optional at `src-tauri/Cargo.toml:35-48`, conditionally
 authority, or production automation server was found.
 
 verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)
+
+## run 7 - 2026-07-30
+
+baseline: spec sha256:0d43fae75085, plan sha256:1aae6e705d11, tasks sha256:4770fe7b1a9b
+
+implemented:
+
+- AC-1 through AC-7 and AC-9 through AC-11 retain the implementations and hosted proof recorded in
+  run 6.
+- AC-8: `docs/releasing-windows.md:13-34` documents the Microsoft Entra identity, profile-scoped
+  signer role, issuer, audience, immutable subject, live verification command, owner ID, and
+  repository ID. `scripts/qa/verify-release-contract.ps1:121` pins the exact immutable subject.
+  The live GitHub API returned prefix `repo:eric-patton@248889511/shelf@1316644982`, and hosted run
+  `30553686208` passed the corrected contract. Azure provisioning and approval remain the explicit
+  unresolved human signoff, not implementation drift.
+
+The immutable subject binds federation to the current owner and repository IDs without adding a
+long-lived credential, signing permission outside `windows-release`, or unrequested product
+behavior. No missing, partial, contradictory, or unrequested implementation was found.
+
+verdict: open 0 (missing 0, partial 0, contradicts 0, unrequested 0)

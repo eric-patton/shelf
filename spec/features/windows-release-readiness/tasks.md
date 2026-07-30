@@ -105,6 +105,8 @@
 - [x] T26 Update the Windows release runbook with the live owner ID, repository ID, immutable
   subject, federation values, and verification command. File: `docs/releasing-windows.md`. Trace:
   `feat-004/AC-8`.
-- [ ] T27 Verify the subject against the live GitHub API, pass the release contract and workspace
+- [x] T27 Verify the subject against the live GitHub API, pass the release contract and workspace
   validation, fold the delta, append convergence run 7, commit, push, and confirm hosted CI.
-  Trace: `feat-004/AC-8`.
+  Observed: GitHub reported owner ID `248889511`, repository ID `1316644982`, and immutable prefix
+  `repo:eric-patton@248889511/shelf@1316644982`; the release contract and feature validation
+  passed, and hosted run `30553686208` passed all four jobs. Trace: `feat-004/AC-8`.

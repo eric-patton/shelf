@@ -79,8 +79,9 @@ signature, artifacts are integrity-checked, and clean supported systems complete
   signature verification, upstream migration, independent maintenance, attribution, and common
   troubleshooting.
 - [ ] AC-8: Azure Artifact Signing Public Trust and protected release setup are approved. (manual)
-  This covers the identity, certificate profile, exact fork-bound GitHub OIDC federation,
-  repository configuration, and protected `windows-release` plus `production-release` environments.
+  This covers the identity, certificate profile, exact immutable GitHub OIDC subject
+  `repo:eric-patton@248889511/shelf@1316644982:environment:windows-release`, repository
+  configuration, and protected `windows-release` plus `production-release` environments.
 - [ ] AC-9: Signed bundles pass the clean Windows 10 and Windows 11 release matrix. (manual)
   This covers MSI and NSIS install, launch, terminal, real Claude, Codex, and pi, SSH, restart
   recovery, upstream Shelf 0.2.27 migration, applicable fork upgrade, uninstall, signature, and
@@ -102,8 +103,9 @@ signature, artifacts are integrity-checked, and clean supported systems complete
 
 - A pull request from an untrusted fork never receives Azure signing permissions.
 - The GitHub OIDC subject is exactly
-  `repo:eric-patton/shelf:environment:windows-release`; an upstream or renamed repository does not
-  inherit signing access.
+  `repo:eric-patton@248889511/shelf@1316644982:environment:windows-release`. An ordinary rename
+  retains the immutable owner and repository IDs, while a transfer or replacement repository does
+  not inherit signing access.
 - A tag without the protected environment or required secrets cannot publish Windows assets.
 - Rejecting or withholding `production-release` approval leaves signed artifacts private and creates
   no public release.
