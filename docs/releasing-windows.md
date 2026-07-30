@@ -8,18 +8,34 @@ This runbook covers the independently maintained Shelf for Windows 0.3.0 release
 1. Create an Azure Artifact Signing account in a supported region.
 2. Complete Public Trust identity validation.
 3. Create a Public Trust certificate profile.
-4. Grant the workload identity the Artifact Signing Certificate Profile Signer role.
-5. Create an Azure workload identity federation entry with the exact subject
-   `repo:eric-patton/shelf:environment:windows-release`.
-6. Create the `windows-release` environment, require a release-owner approval, and restrict it to
+4. Create or select a Microsoft Entra application or user-assigned managed identity for the
+   workflow. Record its client ID, tenant ID, and Azure subscription ID.
+5. Grant that workload identity the Artifact Signing Certificate Profile Signer role at the
+   certificate profile scope.
+6. Create a federated identity credential with these exact values:
+   - Issuer: `https://token.actions.githubusercontent.com`
+   - Audience: `api://AzureADTokenExchange`
+   - Subject:
+     `repo:eric-patton@248889511/shelf@1316644982:environment:windows-release`
+7. Verify the live GitHub OIDC configuration before creating the credential:
+
+   ```powershell
+   gh api repos/eric-patton/shelf/actions/oidc/customization/sub
+   ```
+
+   This fork was created after GitHub's 2026-07-15 immutable-subject cutoff. Its live prefix is
+   `repo:eric-patton@248889511/shelf@1316644982`, where `248889511` is the owner ID and
+   `1316644982` is the repository ID. Do not use the older name-only subject. An ordinary rename
+   keeps these IDs, while a transfer or replacement repository requires a new review.
+8. Create the `windows-release` environment, require a release-owner approval, and restrict it to
    version tags.
-7. Create the `production-release` environment, require a release-owner approval, and restrict it to
+9. Create the `production-release` environment, require a release-owner approval, and restrict it to
    version tags. This environment receives no Azure identity.
-8. Add repository secrets:
+10. Add repository secrets:
    - `AZURE_CLIENT_ID`
    - `AZURE_TENANT_ID`
    - `AZURE_SUBSCRIPTION_ID`
-9. Add repository variables:
+11. Add repository variables:
    - `ARTIFACT_SIGNING_ENDPOINT`
    - `ARTIFACT_SIGNING_ACCOUNT`
    - `ARTIFACT_SIGNING_PROFILE`

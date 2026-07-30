@@ -118,6 +118,6 @@ if (-not $publishBlock) {
 if ($publishBlock -match 'id-token:\s*write|azure/login|ARTIFACT_SIGNING_') {
     throw "The publication job must not receive Azure signing authority."
 }
-Assert-Contains "docs/releasing-windows.md" "repo:eric-patton/shelf:environment:windows-release" "Runbook must document the exact fork OIDC subject"
+Assert-Contains "docs/releasing-windows.md" "repo:eric-patton@248889511/shelf@1316644982:environment:windows-release" "Runbook must document the exact immutable fork OIDC subject"
 
 Write-Output "Release contract passed."

@@ -23,6 +23,8 @@
 - Authenticate to Azure through a protected GitHub environment and OIDC. Use Microsoft's Artifact
   Signing client tools through Tauri's post-patch `signCommand` hook so the embedded executable and
   final installers retain valid signatures.
+- Bind Azure federation to GitHub's live immutable owner-ID and repository-ID subject for this
+  post-2026-07-15 fork, and verify those IDs through the GitHub repository API.
 - Upload signed MSI, NSIS, and checksum artifacts after the signing job, then require a separate
   `production-release` environment approval before public publication.
 - Keep macOS CI coverage while limiting this fork's public release assets to Windows.

@@ -98,3 +98,13 @@
   contract, embedded real-app PowerShell smoke, and process teardown passed locally. GitHub Actions
   run `30552560129` passed Windows quality, macOS quality, dependency audit, and Windows desktop
   smoke. Trace: `feat-004/AC-1`, `feat-004/AC-2`, `feat-004/AC-3`.
+- [x] T25 Add a failing release-contract assertion for the fork's exact immutable OIDC subject and
+  remove the stale name-only assertion. File: `scripts/qa/verify-release-contract.ps1`. Trace:
+  `feat-004/AC-8`. Observed: the updated contract failed against the stale name-only runbook before
+  the documentation changed.
+- [x] T26 Update the Windows release runbook with the live owner ID, repository ID, immutable
+  subject, federation values, and verification command. File: `docs/releasing-windows.md`. Trace:
+  `feat-004/AC-8`.
+- [ ] T27 Verify the subject against the live GitHub API, pass the release contract and workspace
+  validation, fold the delta, append convergence run 7, commit, push, and confirm hosted CI.
+  Trace: `feat-004/AC-8`.
